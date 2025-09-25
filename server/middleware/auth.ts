@@ -43,8 +43,9 @@ export default defineEventHandler(async (event) => {
                 throw new Error('Failed to fetch user info.');
             }
 
-            // Adjuntamos la información del usuario al contexto del evento.
+            // Adjuntamos la información del usuario y el cliente autenticado al contexto del evento.
             event.context.user = userInfo;
+            event.context.oauth2client = oauth2client;
 
         } catch (error) {
             // Si el token es inválido (expirado o malicioso), Google devolverá un error.
