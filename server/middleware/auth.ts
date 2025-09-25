@@ -14,7 +14,7 @@ const oauth2client = new google.auth.OAuth2(
 
 export default defineEventHandler(async (event) => {
     // Definimos las rutas que queremos proteger.
-    const protectedRoutes = ['/api/me', '/api/courses'];
+    const protectedRoutes = ['/api/auth/me', '/api/courses'];
     const url = getRequestURL(event);
 
     // Comprobamos si la ruta actual está en la lista de rutas protegidas.

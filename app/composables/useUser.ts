@@ -3,4 +3,4 @@
 // and can be shared across all components and pages.
 import type { oauth2_v2 } from "googleapis"
 
-export const useUser = () => useState<oauth2_v2.Schema$Userinfo | null>('user', () => null);
+export const useUser = () => useState<oauth2_v2.Schema$Userinfo | null>('user', () => null)
