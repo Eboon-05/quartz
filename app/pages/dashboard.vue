@@ -12,7 +12,7 @@ interface CoursesResponse {
     courses: Course[]
 }
 
-const { data, pending, error } = useFetch<CoursesResponse>('/api/courses', {
+const { data, pending, error, refresh } = useFetch<CoursesResponse>('/api/courses', {
     lazy: true,
 })
 
@@ -24,11 +24,9 @@ async function startCourse(courseId: string) {
             method: 'POST',
             body: { courseId },
         })
-        // TODO: Handle successful course start, e.g., show a notification or navigate
-        console.log('Course started successfully:', courseId)
+        await refresh()
     } catch (error) {
         console.error('Error starting course:', error)
-        // TODO: Show an error message to the user
     }
 }
 </script>

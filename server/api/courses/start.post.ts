@@ -24,6 +24,8 @@ export default defineEventHandler(async (event) => {
     const [course] = await db.create(`course`, {
         id: body.courseId,
         ownerId: user.id,
+        teachers: [],
+        coords: []
     })
 
     return {
