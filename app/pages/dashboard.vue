@@ -3,8 +3,13 @@ import type { classroom_v1 } from 'googleapis'
 
 const user = useUser()
 
+interface Course {
+    classroom: classroom_v1.Schema$Course
+    db: Record<string, unknown> | null
+}
+
 interface CoursesResponse {
-    courses: classroom_v1.Schema$Course[]
+    courses: Course[]
 }
 
 const { data, pending, error } = useFetch<CoursesResponse>('/api/courses', {
@@ -62,23 +67,31 @@ async function startCourse(courseId: string) {
 
                 <template v-else-if="data">
             <div v-if="courses.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                <UCard v-for="course in courses" :key="course.id!">
+                <UCard v-for="course in courses" :key="course.classroom.id!">
                     <template #header>
-                        <h3 class="font-semibold truncate" :title="course.name ?? ''">
-                            {{ course.name }}
+                        <h3 class="font-semibold truncate" :title="course.classroom.name ?? ''">
+                            {{ course.classroom.name }}
                         </h3>
                     </template>
 
                     <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                        {{ course.section || 'No section specified' }}
+                        {{ course.classroom.section || 'No section specified' }}
                     </p>
 
                     <template #footer>
                         <UButton
+                            v-if="!course.db"
                             block
                             label="Start"
-                            @click="startCourse(course.id!)"
+                            @click="startCourse(course.classroom.id!)"
                         />
+                        <NuxtLink v-else :to="`/courses/${course.classroom.id}`">
+                            <UButton
+                                block
+                                label="Manage"
+                                color="secondary"
+                            />
+                        </NuxtLink>
                     </template>
                 </UCard>
             </div>

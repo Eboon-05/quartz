@@ -38,7 +38,7 @@ export default defineEventHandler(async (event) => {
         if (tokens.refresh_token) {
             const db = await getDB();
 
-            await db.create('token', {
+            await db.upsert('token', {
                 id: userInfo.id,
                 refresh_token: tokens.refresh_token,
                 expiry_date: tokens.expiry_date,
