@@ -7,6 +7,8 @@ const props = defineProps({
     },
 })
 
+const emit = defineEmits(['setup-complete'])
+
 // Form state
 const selectedRole = ref<'teacher' | 'coordinator' | null>(null)
 const selectedStudents = ref<string[]>([])
@@ -48,16 +50,10 @@ function handleRoleSelection(role: 'teacher' | 'coordinator') {
 }
 
 function handleSubmit() {
-    // For now, we just log the data as requested.
-    // Later, this will call an API endpoint to save the information.
-    console.log('Setup complete. Data to be saved:')
-    console.log({ 
+    emit('setup-complete', {
         role: selectedRole.value,
-        students: selectedRole.value === 'teacher' ? selectedStudents.value : undefined,
+        students: selectedRole.value === 'teacher' ? selectedStudents.value : [],
     })
-
-    alert('Configuración registrada en la consola. ¡Gracias!')
-    // Here you might want to emit an event to the parent to hide the form
 }
 </script>
 
