@@ -122,7 +122,7 @@ async function syncCourse() {
                 </template>
                 <template #stats>
                     <div class="p-4">
-                        <CourseTabViewStats :course-details="courseDetails" />
+                        <CourseTabViewStats :course-details="courseDetails" :course-id="courseId" />
                     </div>
                 </template>
             </UTabs>
