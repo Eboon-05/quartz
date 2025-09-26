@@ -1,26 +1,37 @@
 <script setup lang="ts">
-import type { DBUser } from '#shared/types/db'
+import type { CourseDetailsResponse } from '#shared/types/courseDetailsResponse'
+import type { CheckboxGroupItem } from '@nuxt/ui'
+import { RecordId } from 'surrealdb'
 
 const route = useRoute()
 const user = useUser()
 const courseId = route.params.id as string
 
-const { data, pending, error } = await useFetch(`/api/courses/${courseId}`)
+const { data, pending, error } = await useFetch<CourseDetailsResponse>(`/api/courses/${courseId}`)
 
 const isTeacher = computed(() => {
-    if (!data.value || !user.value) return false
-    // @ts-expect-error SurrealDB relation is weird
-    return data.value.teachers.some(teacher => teacher.id === user.value.id)
+    if (!data.value?.teachers || !user.value?.id) return false
+    const userId = new RecordId('user', user.value.id)
+    return data.value.teachers.some(teacher => teacher.id === userId)
 })
 
+console.log(data.value?.students.map(student => ({
+    value: student.id.toString(),
+    label: student.name,
+})))
+
 const cellName = ref('')
+const students = ref<CheckboxGroupItem[]>(data.value?.students.map(student => ({
+    value: student.id.toString(),
+    label: student.name,
+})) ?? [])
 const selectedStudents = ref<string[]>([])
 
 async function handleSubmit() {
-    if (!isTeacher.value) {
-        alert('Solo los profesores pueden crear células.')
-        return
-    }
+    // if (!isTeacher.value) {
+    //     alert('Solo los profesores pueden crear células.')
+    //     return
+    // }
 
     await $fetch(`/api/courses/${courseId}/cell`, {
         method: 'POST',
@@ -36,7 +47,7 @@ async function handleSubmit() {
 </script>
 
 <template>
-    <div>
+    <div class="p-4 sm:p-6 lg:p-8">
         <div v-if="pending">
             Cargando...
         </div>
@@ -44,42 +55,28 @@ async function handleSubmit() {
             Error al cargar los datos del curso.
         </div>
         <div v-else-if="data && user">
-            <div v-if="isTeacher">
-                <h1>
-                    Gestionar Célula
-                </h1>
-                <form @submit.prevent="handleSubmit">
-                    <div>
-                        <label for="cellName">Nombre de la Célula:</label>
-                        <input
-                            id="cellName"
-                            v-model="cellName"
-                            type="text"
-                            required
-                        />
-                    </div>
+            <UCard v-if="true">
+                <template #header>
+                    <h1 class="text-xl font-bold">
+                        Gestionar Célula
+                    </h1>
+                </template>
 
-                    <h2>
-                        Seleccionar Alumnos
-                    </h2>
-                    <!-- @ts-expect-error SurrealDB relation is weird -->
-                    <div v-for="student in data.students as DBUser[]" :key="student.id">
-                        <input
-                            :id="student.id"
+                <UForm :state="{ cellName, selectedStudents }" @submit.prevent="handleSubmit">
+                    <div class="space-y-6">
+                        <UFormField label="Nombre de la Célula" name="cellName">
+                            <UInput v-model="cellName" required />
+                        </UFormField>
+
+                        <UCheckboxGroup
                             v-model="selectedStudents"
-                            :value="student.id"
-                            type="checkbox"
+                            :items="students"
                         />
-                        <label :for="student.id">
-                            {{ student.name }}
-                        </label>
-                    </div>
 
-                    <button type="submit">
-                        Guardar Célula
-                    </button>
-                </form>
-            </div>
+                        <UButton type="submit" label="Guardar Célula" />
+                    </div>
+                </UForm>
+            </UCard>
             <div v-else>
                 <p>
                     No tienes permiso para ver esta página.

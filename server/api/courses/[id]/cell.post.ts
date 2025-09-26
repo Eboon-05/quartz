@@ -19,12 +19,18 @@ export default defineEventHandler(async (event) => {
 
     const db = await getDB()
 
-    const [existingCell] = await db.query(
+    const existingCellResult = await db.query<[{
+        '<-belongs_to': {
+            '<-cell': DBCell[]
+        }
+    }[]]>(
         `SELECT <-belongs_to<-cell.* FROM ${new RecordId('user', user.id)};`
-    ) as DBCell[][]
+    )
 
-    if (existingCell.length > 0) {
-        await db.delete(existingCell[0].id)
+    const cellToDelete = existingCellResult[0]?.[0]?.['<-belongs_to']?.['<-cell']?.[0];
+
+    if (cellToDelete) {
+        await db.delete(cellToDelete.id);
     }
 
     const cell = (await db.create('cell', {
@@ -32,13 +38,13 @@ export default defineEventHandler(async (event) => {
     }))[0] as { id: RecordId }
 
     let query = `
-        RELATE ${cell.id}->belongs_to->${new RecordId('course', courseId)};
+        RELATE ${cell.id}->belongs_to->${new RecordId('user', user.id)};
         RELATE ${cell.id}->in_course->${new RecordId('course', courseId)};
     `
 
     for (const studentId of body.students) {
         query += `
-            RELATE ${new RecordId('user', studentId)}->in_cell->${cell.id};
+            RELATE ${studentId}->in_cell->${cell.id};
         `
     }
 
