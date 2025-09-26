@@ -1,4 +1,6 @@
 <script setup lang='ts'>
+import { useGlobalLoading } from '~/composables/useGlobalLoading'
+
 const { loadingState } = useGlobalLoading()
 
 // Show loading during page transitions

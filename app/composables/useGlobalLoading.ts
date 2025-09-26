@@ -3,28 +3,42 @@ interface LoadingState {
     message: string
 }
 
-const globalLoadingState = ref<LoadingState>({
-    visible: false,
-    message: 'Cargando...'
-})
-
-export const useGlobalLoading = () => {
-    const showLoading = (message: string = 'Cargando...') => {
-        globalLoadingState.value = {
-            visible: true,
-            message
+// Use globalThis to ensure state persists across the entire app
+const getGlobalState = () => {
+    if (typeof globalThis !== 'undefined') {
+        if (!globalThis.__nuxt_global_loading_state) {
+            globalThis.__nuxt_global_loading_state = reactive<LoadingState>({
+                visible: false,
+                message: 'Cargando...'
+            })
         }
+        return globalThis.__nuxt_global_loading_state
+    }
+    
+    // Fallback for SSR
+    return reactive<LoadingState>({
+        visible: false,
+        message: 'Cargando...'
+    })
+}
+
+export function useGlobalLoading() {
+    const globalLoadingState = getGlobalState()
+
+    const showLoading = (message: string = 'Cargando...') => {
+        globalLoadingState.visible = true
+        globalLoadingState.message = message
     }
 
     const hideLoading = () => {
-        globalLoadingState.value.visible = false
+        globalLoadingState.visible = false
     }
 
     const setLoadingMessage = (message: string) => {
-        globalLoadingState.value.message = message
+        globalLoadingState.message = message
     }
 
-    const isLoading = computed(() => globalLoadingState.value.visible)
+    const isLoading = computed(() => globalLoadingState.visible)
 
     return {
         showLoading,
@@ -33,4 +47,12 @@ export const useGlobalLoading = () => {
         isLoading,
         loadingState: readonly(globalLoadingState)
     }
+}
+
+// Export as default as well for better compatibility
+export default useGlobalLoading
+
+// Extend globalThis type for TypeScript
+declare global {
+    var __nuxt_global_loading_state: LoadingState | undefined
 }

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { classroom_v1 } from 'googleapis'
 
+import { useGlobalLoading } from '~/composables/useGlobalLoading'
+
 const user = useUser()
 const { showLoading, hideLoading } = useGlobalLoading()
 

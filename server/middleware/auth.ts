@@ -19,40 +19,90 @@ export default defineEventHandler(async (event) => {
 
     // Comprobamos si la ruta actual está en la lista de rutas protegidas.
     if (protectedRoutes.some(route => url.pathname.startsWith(route))) {
-        const accessToken = getCookie(event, 'google_access_token');
+        const sessionCookie = getCookie(event, 'auth-session');
 
-        if (!accessToken) {
+        if (!sessionCookie) {
             throw createError({
                 statusCode: 401,
-                statusMessage: 'Unauthorized: No token provided.',
+                statusMessage: 'Unauthorized: No session found.',
             });
         }
 
         try {
-            // Establecemos las credenciales en el cliente de OAuth2.
-            oauth2client.setCredentials({ access_token: accessToken });
+            // Parse session data
+            const sessionData = JSON.parse(sessionCookie);
+            const { credentials, userInfo } = sessionData;
 
-            // Obtenemos la información del usuario usando el SDK de googleapis.
-            const oauth2 = google.oauth2({
-                auth: oauth2client,
-                version: 'v2'
-            });
-            const { data: userInfo } = await oauth2.userinfo.get();
-
-            if (!userInfo) {
-                throw new Error('Failed to fetch user info.');
+            if (!credentials?.access_token || !userInfo) {
+                throw new Error('Invalid session data.');
             }
 
-            // Adjuntamos la información del usuario y el cliente autenticado al contexto del evento.
-            event.context.user = userInfo;
-            event.context.oauth2client = oauth2client;
+            // Set up OAuth2 client with stored credentials
+            oauth2client.setCredentials(credentials);
+
+            // Check if token is still valid by making a simple API call
+            try {
+                const oauth2 = google.oauth2({
+                    auth: oauth2client,
+                    version: 'v2'
+                });
+                
+                // Verify token is still valid
+                await oauth2.userinfo.get();
+                
+                // If we get here, token is valid
+                event.context.user = userInfo;
+                event.context.oauth2client = oauth2client;
+                
+            } catch (apiError) {
+                // Token might be expired, attempt refresh if refresh_token exists
+                if (credentials.refresh_token) {
+                    try {
+                        const { credentials: newCredentials } = await oauth2client.refreshAccessToken();
+                        oauth2client.setCredentials(newCredentials);
+                        
+                        // Update session with new credentials
+                        const updatedSession = {
+                            ...sessionData,
+                            credentials: newCredentials
+                        };
+                        
+                        setCookie(event, 'auth-session', JSON.stringify(updatedSession), {
+                            httpOnly: true,
+                            secure: process.env.NODE_ENV === 'production',
+                            sameSite: 'lax',
+                            maxAge: 60 * 60 * 24 * 7, // 7 days
+                        });
+                        
+                        // Set context with refreshed credentials
+                        event.context.user = userInfo;
+                        event.context.oauth2client = oauth2client;
+                        
+                    } catch (refreshError) {
+                        console.error('Token refresh failed:', refreshError);
+                        
+                        // Clear invalid session
+                        deleteCookie(event, 'auth-session');
+                        
+                        throw createError({
+                            statusCode: 401,
+                            statusMessage: 'Session expired. Please re-authenticate.',
+                        });
+                    }
+                } else {
+                    throw new Error('No refresh token available.');
+                }
+            }
 
         } catch (error) {
-            // Si el token es inválido (expirado o malicioso), Google devolverá un error.
-            console.error('Invalid token:', error);
+            console.error('Authentication error:', error);
+            
+            // Clear invalid session
+            deleteCookie(event, 'auth-session');
+            
             throw createError({
                 statusCode: 401,
-                statusMessage: 'Unauthorized: Invalid token.',
+                statusMessage: 'Invalid or expired session. Please re-authenticate.',
             });
         }
     }

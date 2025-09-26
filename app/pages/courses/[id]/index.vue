@@ -2,6 +2,7 @@
 import type { DBCourse } from '#shared/types/db'
 import type { CourseDetailsResponse } from '#shared/types/courseDetailsResponse'
 import { RecordId } from 'surrealdb'
+import { useGlobalLoading } from '~/composables/useGlobalLoading'
 
 const route = useRoute()
 const user = useUser()

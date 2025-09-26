@@ -35,6 +35,7 @@ export default defineEventHandler(async (event) => {
             });
         }
 
+        // Store refresh token in database for future use
         if (tokens.refresh_token) {
             const db = await getDB();
 
@@ -45,15 +46,33 @@ export default defineEventHandler(async (event) => {
             })
         }
 
+        // Create session data with all necessary information
+        const sessionData = {
+            credentials: tokens,
+            userInfo: userInfo,
+            created_at: new Date().toISOString()
+        };
+
+        // Set session cookie with all auth data
+        setCookie(event, 'auth-session', JSON.stringify(sessionData), {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 7, // 7 days (much longer than access token)
+        });
+
+        // Also set legacy cookie for backward compatibility (temporary)
         setCookie(event, 'google_access_token', tokens.access_token!, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+            secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: tokens.expiry_date ? Math.floor((tokens.expiry_date - Date.now()) / 1000) : 60 * 60, // Expira en 1 hora o lo que diga Google
+            maxAge: tokens.expiry_date ? Math.floor((tokens.expiry_date - Date.now()) / 1000) : 60 * 60,
         });
 
         return {
             user: userInfo,
+            session_created: true,
+            token_expires: tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null
         };
     } catch (error) {
         console.error("Error exchanging Google code:", error);

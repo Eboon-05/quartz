@@ -31,23 +31,10 @@ export default defineEventHandler(async (event) => {
     const courseRecordId = new RecordId('course', cleanCourseId)
     const userRecordId = new RecordId('user', user.id)
     
-    console.log('Sync permission check:', {
-        userId: user.id,
-        originalCourseId: courseId,
-        cleanCourseId: cleanCourseId,
-        userRecordId: userRecordId.toString(),
-        courseRecordId: courseRecordId.toString()
-    })
-    
     // Check if user is a teacher of this course
     const [isTeacherResult] = await db.query<[{ in: string, out: string }[]]>(
         `SELECT * FROM is_teacher WHERE in = ${userRecordId} AND out = ${courseRecordId}`
     )
-    
-    console.log('Teacher check result:', {
-        resultLength: isTeacherResult?.length || 0,
-        result: isTeacherResult
-    })
     
     // Also check if user is the owner as a fallback and get course info
     const dbCourse = await db.select(courseRecordId)
@@ -57,12 +44,6 @@ export default defineEventHandler(async (event) => {
     
     const isOwner = dbCourse.ownerId === user.id
     
-    console.log('Owner check:', {
-        courseOwnerId: dbCourse.ownerId,
-        userId: user.id,
-        isOwner
-    })
-    
     if ((!isTeacherResult || isTeacherResult.length === 0) && !isOwner) {
         throw createError({ statusCode: 403, statusMessage: 'Forbidden: You must be a teacher or owner of this course to sync.' })
     }
@@ -71,7 +52,6 @@ export default defineEventHandler(async (event) => {
 
     try {
         // 2. Fetch all teachers and students from Google Classroom API.
-        console.log('Calling Classroom API with courseId:', cleanCourseId)
         const [teachersResponse, studentsResponse] = await Promise.all([
             classroom.courses.teachers.list({ courseId: cleanCourseId }),
             classroom.courses.students.list({ courseId: cleanCourseId }),
@@ -104,7 +84,6 @@ export default defineEventHandler(async (event) => {
         await Promise.all(profilePromises.filter(Boolean))
 
         // 5. Clean up ALL existing relationships for this course first to avoid duplicates
-        console.log('Cleaning existing relationships for course:', cleanCourseId)
         await Promise.all([
             db.query(`DELETE is_teacher WHERE out = ${courseRecordId}`),
             db.query(`DELETE is_student WHERE out = ${courseRecordId}`)
@@ -139,7 +118,6 @@ export default defineEventHandler(async (event) => {
             }
         }
 
-        console.log(`Creating ${relationshipPromises.length} new relationships`)
         await Promise.all(relationshipPromises)
 
         // 7. Return a comprehensive summary
