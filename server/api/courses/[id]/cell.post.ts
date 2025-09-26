@@ -39,17 +39,19 @@ export default defineEventHandler(async (event) => {
 
     let query = `
         RELATE ${cell.id}->belongs_to->${new RecordId('user', user.id)};
-        RELATE ${cell.id}->in_course->${new RecordId('course', courseId)};
+        RELATE ${cell.id}->is_from->${new RecordId('course', courseId)};
     `
 
     for (const studentId of body.students) {
         query += `
-            RELATE ${studentId}->in_cell->${cell.id};
+            RELATE ${studentId}->is_in->${cell.id};
         `
     }
 
     try {
         await db.query(query)
+
+        return cell
     } catch (error) {
         console.error(error)
         throw createError({

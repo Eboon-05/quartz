@@ -58,13 +58,13 @@ export default defineEventHandler(async (event) => {
 
         let teacherCell: DBCell | null = null
         if (isTeacher) {
-            const [teacherCells] = await db.query<[DBCell[]]>(`SELECT * FROM cell WHERE ->belongs_to->user CONTAINS ${userId} AND ->is_from->course CONTAINS ${courseRecordId}`);
-            if (teacherCells.length > 0) {
-                const cell = teacherCells[0]
-                const [studentsForCell] = await db.query<[DBUser[]]>(`SELECT <-is_in<-user.* FROM ${cell.id}`);
+            const [[cell]] = await db.query<[DBCell[]]>(`SELECT * FROM cell WHERE ->belongs_to->user CONTAINS ${userId} AND ->is_from->course CONTAINS ${courseRecordId}`);
+
+            if (cell) {
+                const [studentsForCell] = await db.query<[{ in: DBUser }[]]>(`SELECT * FROM is_in WHERE out = ${cell.id} FETCH in`);
                 teacherCell = {
                     ...cell,
-                    students: studentsForCell || [],
+                    students: studentsForCell?.map(s => s.in) || [],
                 }
             }
         }

@@ -23,37 +23,34 @@ export default defineEventHandler(async (event) => {
     const db = await getDB()
 
     // --- Prepare Record IDs ---
-    const userRecordId = new RecordId('user_profile', user.id)
+    const userRecordId = new RecordId('user', user.id)
     const courseRecordId = new RecordId('course', courseId)
 
     try {
         // --- Build Transaction ---
-        let queries = `
-            BEGIN TRANSACTION;
+        let queries = `BEGIN TRANSACTION;`
 
-            -- 1. Create the relationship between the user and the course
-            RELATE ${userRecordId}->manages->${courseRecordId} SET role = '${body.role}', createdAt = time::now();
-
-            -- 2. Add the user to the corresponding array in the course record
-            UPDATE ${courseRecordId} SET ${body.role === 'teacher' ? 'teachers' : 'coords'} += ${userRecordId};
-        `
-
-        // 3. If the user is a teacher, create their cell
-        if (body.role === 'teacher' && body.students && body.students.length > 0) {
-            const studentRecordIds = body.students.map((studentId: string) => new RecordId('user_profile', studentId))
-            const cellData = {
-                course: courseRecordId,
-                teacher: userRecordId,
-                students: studentRecordIds,
-            }
-            // Note: We create a new cell with a random ID.
-            queries += `
-            CREATE cell CONTENT ${JSON.stringify(cellData)};`
+        // 1. Create the relationship for the user's role
+        if (body.role === 'teacher') {
+            queries += `RELATE ${userRecordId}->is_teacher->${courseRecordId};`
+        } else if (body.role === 'coordinator') {
+            queries += `RELATE ${userRecordId}->is_coord->${courseRecordId};`
         }
 
-        queries += `
-            COMMIT TRANSACTION;
-        `
+        // 2. If the user is a teacher, create their cell and relate students
+        if (body.role === 'teacher' && body.cellName && body.students && body.students.length > 0) {
+            const cellId = `cell:${crypto.randomUUID()}`
+            queries += `CREATE ${cellId} SET name = '${body.cellName}';`
+            queries += `RELATE ${cellId}->is_from->${courseRecordId};`
+            queries += `RELATE ${cellId}->belongs_to->${userRecordId};`
+
+            for (const studentId of body.students) {
+                const studentRecordId = new RecordId('user', studentId)
+                queries += `RELATE ${studentRecordId}->is_in->${cellId};`
+            }
+        }
+
+        queries += `COMMIT TRANSACTION;`
 
         // --- Execute Transaction ---
         await db.query(queries)

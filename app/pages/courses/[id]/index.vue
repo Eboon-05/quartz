@@ -94,7 +94,7 @@ async function syncCourse() {
 
                     <h3 class="text-lg font-semibold mb-2">Estudiantes en tu Célula</h3>
                     <ul v-if="teacherCell.students && teacherCell.students.length > 0" class="space-y-3">
-                        <li v-for="student in teacherCell.students" :key="student.id.toString()" class="p-4 border rounded-md bg-white shadow-sm">
+                        <li v-for="student in teacherCell.students.filter(s => s && s.id)" :key="student.id.toString()" class="p-4 border rounded-md bg-white shadow-sm">
                             <p class="font-medium">{{ student.name || 'Name not available' }}</p>
                             <p class="text-sm text-gray-600">{{ student.email || 'Email not available' }}</p>
                         </li>
