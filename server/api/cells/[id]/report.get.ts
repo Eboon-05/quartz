@@ -88,8 +88,6 @@ export default defineEventHandler(async (event) => {
         `SELECT <-is_from<-work.* FROM ${courseRecordId};`
     )
 
-    console.log(worksResult)
-
     const works = worksResult['<-is_from']['<-work']
 
     return {
