@@ -68,6 +68,7 @@ export default defineEventHandler(async (event) => {
             syncedStudents: classroomStudents.length,
         }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
         console.error('Failed to sync course data:', error)
         throw createError({
