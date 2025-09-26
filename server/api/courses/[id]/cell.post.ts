@@ -62,17 +62,11 @@ export default defineEventHandler(async (event) => {
 
         // 3. Create the new relationships for the selected students
         if (studentIds.length > 0) {
-            const studentRecordIds = studentIds.map((id: string) => new RecordId('user', id))
-            let relateQuery = ''
-            const params: Record<string, RecordId> = { cell: cell.id }
+            const relateQueries = studentIds.map(
+                (studentId) => `RELATE ${studentId}->is_in->${cell.id};`
+            );
 
-            studentRecordIds.forEach((studentId: RecordId, index: number) => {
-                const paramName = `student${index}`
-                relateQuery += `RELATE ${paramName}->is_in->$cell; `
-                params[paramName] = studentId
-            })
-
-            await db.query(relateQuery, params)
+            await db.query(relateQueries.join(' '));
         }
 
         return { success: true, cellId: cell.id }
