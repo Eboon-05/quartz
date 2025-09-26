@@ -1,10 +1,20 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import type { User, Work, IsAssigned } from '~/shared/types/db'
+import { ref, computed } from 'vue'
+import { DateTime } from 'luxon'
+import type { RecordId } from 'surrealdb'
+import type { DBUser, Work, IsAssigned } from '#shared/types/db'
 
-// Tipos para el informe (deben coincidir con el backend)
-interface StudentReport {
-    student: User
+// --- Tipos para la respuesta de la API ---
+interface ApiResponse {
+    courseRecordId: RecordId<'course'>
+    students: DBUser[]
+    submissionsResult: [{ '->is_assigned': IsAssigned[] }[]]
+    works: Work[]
+}
+
+// --- Tipos para el informe procesado ---
+interface ProcessedStudentReport {
+    student: DBUser
     summary: {
         onTime: number
         late: number
@@ -12,15 +22,16 @@ interface StudentReport {
         notSubmitted: number
         averageGrade: number | null
     }
-    works: WorkStatus[]
+    works: ProcessedWorkStatus[]
 }
 
-interface WorkStatus {
+interface ProcessedWorkStatus {
     work: Work
     submission: IsAssigned | null
     status: 'on-time' | 'late' | 'pending' | 'not-submitted'
 }
 
+// --- Props y obtención de datos ---
 const props = defineProps({
     cellId: {
         type: String,
@@ -28,8 +39,55 @@ const props = defineProps({
     },
 })
 
-const { data: report, pending, error } = await useFetch<StudentReport[]>(`/api/cells/${props.cellId}/report`)
+const { data: apiData, pending, error } = await useFetch<ApiResponse>(`/api/cells/${props.cellId}/report`)
 
+// --- Lógica de procesamiento en el cliente ---
+const processedReport = computed<ProcessedStudentReport[]>(() => {
+    if (!apiData.value) return []
+
+    const { students, works, submissionsResult } = apiData.value
+    const allSubmissions = submissionsResult.flat().flatMap(s => s['->is_assigned'] || [])
+
+    return students.map(student => {
+        const studentSubmissions = allSubmissions.filter(s => s.in.toString() === student.id.toString())
+        let totalGrade = 0
+        let gradedCount = 0
+
+        const workStatuses: ProcessedWorkStatus[] = works.map(work => {
+            const submission = studentSubmissions.find(s => s.out.toString() === work.id.toString()) || null
+            let status: ProcessedWorkStatus['status'] = 'not-submitted'
+
+            const dueDate = work.dueDate ? DateTime.fromObject(work.dueDate) : null
+
+            if (submission) {
+                // TODO: La fecha de entrega no viene en el nuevo objeto de submission.
+                // Asumimos 'on-time' por ahora.
+                status = 'on-time'
+
+                if (submission.grade !== null && submission.grade !== undefined) {
+                    totalGrade += submission.grade
+                    gradedCount++
+                }
+            } else if (dueDate && DateTime.now() > dueDate) {
+                status = 'pending'
+            }
+
+            return { work, submission, status }
+        })
+
+        const summary = {
+            onTime: workStatuses.filter(ws => ws.status === 'on-time').length,
+            late: workStatuses.filter(ws => ws.status === 'late').length,
+            pending: workStatuses.filter(ws => ws.status === 'pending').length,
+            notSubmitted: workStatuses.filter(ws => ws.status === 'not-submitted').length,
+            averageGrade: gradedCount > 0 ? totalGrade / gradedCount : null,
+        }
+
+        return { student, summary, works: workStatuses }
+    })
+})
+
+// --- Funciones de UI ---
 const expandedStudents = ref<string[]>([])
 
 function toggleStudent(studentId: string) {
@@ -55,6 +113,11 @@ function formatGrade(grade: number | null | undefined) {
     if (grade === null || grade === undefined) return 'N/A'
     return grade.toFixed(1)
 }
+
+function formatDueDate(work: Work) {
+    if (!work.dueDate) return 'N/A'
+    return DateTime.fromObject(work.dueDate).toLocaleString(DateTime.DATE_SHORT)
+}
 </script>
 
 <template>
@@ -63,7 +126,7 @@ function formatGrade(grade: number | null | undefined) {
 
         <div v-if="pending">Cargando informe...</div>
         <div v-else-if="error">Error al cargar el informe: {{ error.message }}</div>
-        <div v-else-if="report && report.length > 0">
+        <div v-else-if="processedReport && processedReport.length > 0">
             <div class="overflow-x-auto">
                 <table class="min-w-full bg-white border border-gray-200">
                     <thead class="bg-gray-50">
@@ -76,7 +139,7 @@ function formatGrade(grade: number | null | undefined) {
                             <th class="px-6 py-3" />
                         </tr>
                     </thead>
-                    <tbody v-for="studentReport in report" :key="studentReport.student.id.toString()" class="divide-y divide-gray-200">
+                    <tbody v-for="studentReport in processedReport" :key="studentReport.student.id.toString()" class="divide-y divide-gray-200">
                         <tr class="cursor-pointer hover:bg-gray-50" @click="toggleStudent(studentReport.student.id.toString())">
                             <td class="px-6 py-4 whitespace-nowrap">{{ studentReport.student.name }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">{{ studentReport.summary.onTime }}</td>
@@ -105,7 +168,7 @@ function formatGrade(grade: number | null | undefined) {
                                         <tbody>
                                             <tr v-for="workStatus in studentReport.works" :key="workStatus.work.id.toString()">
                                                 <td class="border-t px-4 py-2">{{ workStatus.work.title }}</td>
-                                                <td class="border-t px-4 py-2">{{ workStatus.work.dueDate ? new Date(workStatus.work.dueDate).toLocaleDateString() : 'N/A' }}</td>
+                                                <td class="border-t px-4 py-2">{{ formatDueDate(workStatus.work) }}</td>
                                                 <td class="border-t px-4 py-2">
                                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" :class="getStatusClass(workStatus.status)">
                                                         {{ workStatus.status }}

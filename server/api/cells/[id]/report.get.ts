@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
         submissionsQuery.append([`SELECT ->is_assigned.* FROM ${student.id};`])
     }
 
-    const submissionsResult = await db.query<[
+    const submissionsResult = await db.query<[[
         {
             "->is_assigned": [
                 {
@@ -58,11 +58,44 @@ export default defineEventHandler(async (event) => {
                 }
             ]
         }
-    ]>(submissionsQuery)
+    ]]>(submissionsQuery)
+
+    const [[worksResult]] = await db.query<[[
+        {
+            "<-is_from": {
+                "<-work": [
+                    {
+                        alternateLink: string,
+                        description: string,
+                        dueDate: {
+                            day: number,
+                            month: number,
+                            year: number
+                        },
+                        dueTime: {
+                            hours: number,
+                            minutes: number
+                        },
+                        id: RecordId<'work'>,
+                        maxPoints: number,
+                        title: string,
+                        workType: string
+                    }
+                ]
+            }
+        }
+    ]]>(
+        `SELECT <-is_from<-work.* FROM ${courseRecordId};`
+    )
+
+    console.log(worksResult)
+
+    const works = worksResult['<-is_from']['<-work']
 
     return {
         courseRecordId,
         students,
-        submissionsResult
+        submissionsResult,
+        works
     }
 })
