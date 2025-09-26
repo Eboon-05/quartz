@@ -9,63 +9,43 @@ const props = defineProps<{
 
 const user = useUser()
 
-// Datos mockup mientras se implementan los endpoints reales
-const mockAssignments = [
-    {
-        id: '1',
-        title: 'Ensayo sobre el Barroco',
-        dueDate: '2025-01-20T23:59:00',
-        status: 'pending',
-        priority: 'high',
-        description: 'Análisis de las características del arte barroco',
-    },
-    {
-        id: '2',
-        title: 'Proyecto Final - E-commerce',
-        dueDate: '2025-01-25T23:59:00', 
-        status: 'in_progress',
-        priority: 'high',
-        description: 'Desarrollo completo de una tienda online',
-    },
-    {
-        id: '3',
-        title: 'Ejercicios de Integrales',
-        dueDate: '2025-01-18T23:59:00',
-        status: 'completed',
-        priority: 'medium',
-        grade: 9.2,
-        description: 'Resolución de integrales definidas e indefinidas',
-    },
-    {
-        id: '4',
-        title: 'Quiz de JavaScript',
-        dueDate: '2025-01-22T15:00:00',
-        status: 'pending',
-        priority: 'medium',
-        description: 'Evaluación de conceptos básicos de JS',
-    },
-]
+// Obtener asignaciones del estudiante para este curso
+const { data: assignmentsData, pending: _assignmentsPending } = await useFetch<{
+    assignments: Array<{
+        id: string
+        title: string
+        dueDate: string
+        status: 'pending' | 'in_progress' | 'completed' | 'overdue'
+        priority: 'high' | 'medium' | 'low'
+        description: string
+        grade?: number
+    }>
+}>(`/api/courses/${props.courseId}/assignments`, {
+    key: `student-assignments-${props.courseId}`,
+})
+
+const assignments = computed(() => assignmentsData.value?.assignments || [])
 
 // Stats calculadas
 const stats = computed(() => ({
-    totalAssignments: mockAssignments.length,
-    completedAssignments: mockAssignments.filter(a => a.status === 'completed').length,
-    pendingAssignments: mockAssignments.filter(a => a.status === 'pending').length,
-    averageGrade: mockAssignments
+    totalAssignments: assignments.value.length,
+    completedAssignments: assignments.value.filter(a => a.status === 'completed').length,
+    pendingAssignments: assignments.value.filter(a => a.status === 'pending').length,
+    averageGrade: assignments.value
         .filter(a => a.grade)
-        .reduce((acc, a) => acc + a.grade!, 0) / mockAssignments.filter(a => a.grade).length || 0,
+        .reduce((acc, a) => acc + a.grade!, 0) / assignments.value.filter(a => a.grade).length || 0,
 }))
 
 // Computed properties
 const upcomingAssignments = computed(() => 
-    mockAssignments
+    assignments.value
         .filter(a => a.status === 'pending')
         .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
         .slice(0, 3)
 )
 
 const recentGrades = computed(() =>
-    mockAssignments
+    assignments.value
         .filter(a => a.status === 'completed' && a.grade)
         .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime())
         .slice(0, 3)
@@ -121,7 +101,17 @@ const cellmates = computed(() => {
 
 <template>
     <div class="space-y-6">
-        <!-- Header del estudiante -->
+        <!-- Loading State -->
+        <div v-if="_assignmentsPending" class="flex justify-center py-16">
+            <div class="text-center">
+                <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 text-primary-500 animate-spin mx-auto mb-4" />
+                <p class="text-gray-600 dark:text-gray-300">Cargando información del curso...</p>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div v-else>
+            <!-- Header del estudiante -->
         <div class="bg-gradient-to-r from-primary-50 to-blue-50 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6">
             <div class="flex items-center justify-between">
                 <div>
@@ -386,6 +376,7 @@ const cellmates = computed(() => {
                     </div>
                 </UCard>
             </div>
+        </div>
         </div>
     </div>
 </template>
