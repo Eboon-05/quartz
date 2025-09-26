@@ -8,7 +8,7 @@ const user = useUser()
 const courseId = computed(() => route.params.id as string)
 
 // Fetch the full course details from our new endpoint
-const { data: courseDetails, pending: pendingDetails, error: detailsError } = useFetch<CourseDetailsResponse>(`/api/courses/${courseId.value}`, {
+const { data: courseDetails, pending: pendingDetails, error: detailsError } = useFetch<CourseDetailsResponse>(`/api/courses/${courseId.value}/details`, {
     key: `course-details-${courseId.value}`,
 })
 
@@ -109,6 +109,49 @@ async function syncCourse() {
                     >
                         Crear una ahora
                     </NuxtLink>
+                </div>
+            </div>
+
+            <UDivider class="my-8" />
+
+            <div v-if="courseDetails" class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Teachers Column -->
+                <div class="md:col-span-1">
+                    <h2 class="text-xl font-semibold mb-4">Teachers</h2>
+                    <ul class="space-y-3">
+                        <li v-for="teacher in courseDetails.teachers" :key="teacher.id.toString()" class="flex items-center gap-3">
+                            <UAvatar :src="teacher.photoUrl" :alt="teacher.name" />
+                            <span>{{ teacher.name }}</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Students Column -->
+                <div class="md:col-span-1">
+                    <h2 class="text-xl font-semibold mb-4">Students</h2>
+                    <ul class="space-y-3">
+                        <li v-for="student in courseDetails.students" :key="student.id.toString()" class="flex items-center gap-3">
+                            <UAvatar :src="student.photoUrl" :alt="student.name" />
+                            <span>{{ student.name }}</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Cells Column -->
+                <div class="md:col-span-1">
+                    <h2 class="text-xl font-semibold mb-4">Cells</h2>
+                    <div class="space-y-4">
+                        <div v-for="cell in courseDetails.cells.filter(c => c && c.id)" :key="cell.id.toString()">
+                            <h3 class="font-semibold">{{ cell.name }}</h3>
+                            <ul v-if="cell.students && cell.students.length > 0" class="pl-4 mt-2 space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                                <li v-for="student in cell.students.filter(s => s && s.id)" :key="student.id.toString()" class="flex items-center gap-2">
+                                    <UAvatar :src="student.photoUrl" :alt="student.name" size="2xs" />
+                                    <span>{{ student.name }}</span>
+                                </li>
+                            </ul>
+                            <p v-else class="pl-4 mt-2 text-xs text-gray-400">No students in this cell.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

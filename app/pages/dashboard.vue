@@ -80,7 +80,7 @@ async function startCourse(courseId: string) {
                         <UButton
                             v-if="!course.db"
                             block
-                            label="Start"
+                            label="Clone"
                             @click="startCourse(course.classroom.id!)"
                         />
                         <NuxtLink v-else :to="`/courses/${course.classroom.id}`">
