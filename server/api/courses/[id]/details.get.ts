@@ -40,7 +40,10 @@ export default defineEventHandler(async (event) => {
         const teachers = teachersResult[0]?.map(t => t.in) || []
         const students = studentsResult[0]?.map(s => s.in) || []
         const owner = ownerResult[0]?.[0]?.in || null
-        const rawCells = cellsResult || []
+        // cellsResult es un array anidado, necesitamos el primer elemento
+        const rawCells = (Array.isArray(cellsResult) && Array.isArray(cellsResult[0])) 
+            ? cellsResult[0] as DBCell[] 
+            : (cellsResult as DBCell[]) || []
 
         // 3. Manually fetch students for each cell.
         const cells: DBCell[] = await Promise.all(rawCells.map(async (cell: DBCell) => {
