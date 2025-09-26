@@ -15,14 +15,16 @@ const { data: courseDetails, pending: pendingDetails, error: detailsError } = us
 const dbCourse = computed<DBCourse | null>(() => courseDetails.value?.course ?? null)
 
 
-// Students are now fetched as part of the main course details
-const students = computed(() => courseDetails.value?.students || [])
 
 const isOwner = computed(() => {
     if (!courseDetails.value?.owner || !user.value?.id) return false
     const userId = new RecordId('user', user.value.id)
-    return courseDetails.value.owner.id === userId
+    // SurrealDB RecordId needs to be compared by its string representation
+    return courseDetails.value.owner.id.toString() === userId.toString()
 })
+
+const isTeacher = computed(() => courseDetails.value?.isTeacher ?? false)
+const teacherCell = computed(() => courseDetails.value?.teacherCell ?? null)
 
 async function syncCourse() {
     if (!dbCourse.value) return
@@ -58,17 +60,15 @@ async function syncCourse() {
             <div class='mb-6'>
                 <div class="flex justify-between items-center">
                     <h1 class='text-2xl font-bold'>
-                        Manage Course
+                        {{ dbCourse?.name }}
                     </h1>
                     <div class="flex items-center space-x-2">
-                        <!-- TODO: La lógica para crear o editar una célula debe implementarse aquí.
-                                 El texto del botón y la ruta deben cambiar dependiendo de si el usuario
-                                 ya tiene una célula en este curso. -->
                         <NuxtLink
+                            v-if="isTeacher"
                             :to="`/courses/${courseId}/cell`"
                             class="text-blue-500 hover:underline"
                         >
-                            Gestionar Célula
+                            {{ teacherCell ? 'Editar Célula' : 'Crear Célula' }}
                         </NuxtLink>
                         <UButton
                             v-if="isOwner"
@@ -83,23 +83,32 @@ async function syncCourse() {
                 </p>
             </div>
 
-            <div>
+            
+            <!-- Teacher's Cell Information -->
+            <div v-if="isTeacher" class='mt-6'>
                 <h2 class='text-xl font-semibold mb-4'>
-                    Enrolled Students
+                    Tu Célula
                 </h2>
-                <div v-if='pendingDetails' class='text-gray-500'>
-                    Loading students...
-                </div>
-                <ul v-else-if='students.length > 0' class='space-y-3'>
-                    <template v-for='student in students' :key='student.id.id'>
-                        <li class='p-4 border rounded-md bg-white shadow-sm'>
-                            <p class='font-medium'>{{ student.name || 'Name not available' }}</p>
-                            <p class='text-sm text-gray-600'>{{ student.email || 'Email not available' }}</p>
+                <div v-if="teacherCell">
+                    <p class="mb-4">Nombre de la célula: <strong>{{ teacherCell.name }}</strong></p>
+
+                    <h3 class="text-lg font-semibold mb-2">Estudiantes en tu Célula</h3>
+                    <ul v-if="teacherCell.students && teacherCell.students.length > 0" class="space-y-3">
+                        <li v-for="student in teacherCell.students" :key="student.id.toString()" class="p-4 border rounded-md bg-white shadow-sm">
+                            <p class="font-medium">{{ student.name || 'Name not available' }}</p>
+                            <p class="text-sm text-gray-600">{{ student.email || 'Email not available' }}</p>
                         </li>
-                    </template>
-                </ul>
-                <div v-else class='text-gray-500'>
-                    No students are enrolled in this course.
+                    </ul>
+                    <p v-else class="text-gray-500">No hay estudiantes asignados a tu célula.</p>
+                </div>
+                <div v-else>
+                    <p>Aún no has creado una célula para este curso.</p>
+                    <NuxtLink
+                        :to="`/courses/${courseId}/cell`"
+                        class="text-blue-500 hover:underline"
+                    >
+                        Crear una ahora
+                    </NuxtLink>
                 </div>
             </div>
         </div>

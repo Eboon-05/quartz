@@ -16,6 +16,7 @@ export interface DBCourse {
     name: string
 }
 export interface DBCell {
-    id: RecordId<'cell'>,
+    id: RecordId<'cell'>
     name: string
+    students?: DBUser[]
 }

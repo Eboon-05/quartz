@@ -8,4 +8,6 @@ export interface CourseDetailsResponse {
     students: DBUser[]
     cells: DBCell[]
     owner: DBUser | null
+    isTeacher: boolean
+    teacherCell: DBCell | null
 }

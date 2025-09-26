@@ -1,24 +1,12 @@
 <script setup lang="ts">
 import type { CourseDetailsResponse } from '#shared/types/courseDetailsResponse'
 import type { CheckboxGroupItem } from '@nuxt/ui'
-import { RecordId } from 'surrealdb'
-
 const route = useRoute()
-const user = useUser()
 const courseId = route.params.id as string
 
 const { data, pending, error } = await useFetch<CourseDetailsResponse>(`/api/courses/${courseId}`)
 
-const isTeacher = computed(() => {
-    if (!data.value?.teachers || !user.value?.id) return false
-    const userId = new RecordId('user', user.value.id)
-    return data.value.teachers.some(teacher => teacher.id === userId)
-})
-
-console.log(data.value?.students.map(student => ({
-    value: student.id.toString(),
-    label: student.name,
-})))
+const isTeacher = computed(() => data.value?.isTeacher ?? false)
 
 const cellName = ref('')
 const students = ref<CheckboxGroupItem[]>(data.value?.students.map(student => ({
@@ -41,8 +29,7 @@ async function handleSubmit() {
         },
     })
 
-    alert('Célula guardada con éxito!')
-    // TODO: Redirigir o actualizar la UI
+    navigateTo(`/courses/${courseId}`)
 }
 </script>
 
@@ -54,8 +41,9 @@ async function handleSubmit() {
         <div v-else-if="error">
             Error al cargar los datos del curso.
         </div>
-        <div v-else-if="data && user">
-            <UCard v-if="true">
+        <div v-else-if="data">
+            <NuxtLink :to="`/courses/${courseId}`">Volver al curso</NuxtLink>
+            <UCard v-if="isTeacher">
                 <template #header>
                     <h1 class="text-xl font-bold">
                         Gestionar Célula
