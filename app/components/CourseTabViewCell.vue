@@ -1,5 +1,6 @@
 <script setup lang='ts'>
 import type { CourseDetailsResponse } from '#shared/types/courseDetailsResponse'
+import CellReport from './CellReport.vue'
 
 defineProps<{ courseDetails: CourseDetailsResponse, courseId: string }>()
 </script>
@@ -19,14 +20,7 @@ defineProps<{ courseDetails: CourseDetailsResponse, courseId: string }>()
                 </NuxtLink>
             </div>
 
-            <h3 class="text-lg font-semibold mb-2">Estudiantes en tu Célula</h3>
-            <ul v-if="courseDetails.teacherCell.students && courseDetails.teacherCell.students.length > 0" class="space-y-3">
-                <li v-for="student in courseDetails.teacherCell.students.filter(s => s && s.id)" :key="student.id.toString()" class="p-4 border rounded-md bg-white shadow-sm">
-                    <p class="font-medium">{{ student.name || 'Name not available' }}</p>
-                    <p class="text-sm text-gray-600">{{ student.email || 'Email not available' }}</p>
-                </li>
-            </ul>
-            <p v-else class="text-gray-500">No hay estudiantes asignados a tu célula.</p>
+            <CellReport :cell-id="courseDetails.teacherCell.id.toString().split(':')[1]" />
         </div>
         <div v-else>
             <p>Aún no has creado una célula para este curso.</p>

@@ -43,7 +43,7 @@ async function startCourse(courseId: string) {
             Loading user...
         </p>
 
-        <UDivider class="my-6" />
+        <hr class="my-6 border-gray-200 dark:border-gray-800">
 
         <h2 class="text-xl font-semibold mb-4">
             Your Courses

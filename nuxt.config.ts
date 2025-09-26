@@ -13,4 +13,8 @@ export default defineNuxtConfig({
     }
   },
   css: ['~/assets/css/main.css'],
+  alias: {
+    '#server': '~~/server',
+    '#shared': '~~/shared',
+  },
 })
