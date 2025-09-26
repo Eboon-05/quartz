@@ -83,15 +83,21 @@ const studentsWithStats = computed<StudentWithStats[]>(() => {
             .find((result) => result[0]?.['->is_assigned']?.some(sub => sub.in.toString() === student.id.toString()))
             ?.[0]?.['->is_assigned'] || []
 
+        // Trabajos entregados: submitted, late, o cualquiera que tenga calificación
+        const submittedWorks = studentSubmissions.filter(sub => 
+            sub.state === 'submitted' || 
+            sub.state === 'late' || 
+            (sub.grade !== null && sub.grade !== undefined) // Si tiene calificación, fue entregado
+        ).length
+
+        // Para el promedio, considerar cualquier trabajo que tenga calificación
         const grades = studentSubmissions
+            .filter(sub => sub.grade !== null && sub.grade !== undefined)
             .map(sub => sub.grade)
-            .filter(grade => grade !== null && grade !== undefined)
 
         const averageGrade = grades.length > 0 
             ? grades.reduce((sum, grade) => sum + grade, 0) / grades.length 
             : null
-
-        const submittedWorks = studentSubmissions.length
         const totalWorks = report.value.works.length
         const completionRate = totalWorks > 0 
             ? `${Math.round((submittedWorks / totalWorks) * 100)}%` 
@@ -233,10 +239,16 @@ const workColumns: TableColumn<WorkWithStatus>[] = [
         cell: ({ row }) => {
             const state = row.getValue<string>('state')
             const color = getStateColor(state)
-            const stateText = state === 'submitted' ? 'Entregado' :
-                             state === 'late' ? 'Tarde' :
-                             state === 'pending' ? 'Pendiente' :
-                             'No entregado'
+            const stateText = (() => {
+                switch (state) {
+                    case 'submitted': return 'Entregado'
+                    case 'late': return 'Tarde'
+                    case 'pending': return 'Pendiente'
+                    case 'returned': return 'Devuelto'
+                    case 'no-submitted': return 'No entregado'
+                    default: return `Estado: ${state}` // Para debug
+                }
+            })()
             
             return h(UBadge, {
                 color,
@@ -287,10 +299,11 @@ function formatDueDate(dueDate: { day: number; month: number; year: number }, du
 
 function getStateColor(state: string) {
     switch (state) {
-        case 'submitted': return 'success'
-        case 'late': return 'warning'
-        case 'pending': return 'info'
-        case 'no-submitted': return 'neutral'
+        case 'submitted': return 'info'      // Entregado, esperando calificación
+        case 'late': return 'warning'        // Entregado tarde, esperando calificación
+        case 'returned': return 'success'    // Entregado y calificado (devuelto)
+        case 'pending': return 'neutral'     // Pendiente
+        case 'no-submitted': return 'neutral' // No entregado
         default: return 'neutral'
     }
 }
