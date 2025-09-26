@@ -1,6 +1,6 @@
 import { RecordId } from 'surrealdb'
 import type { CourseDetailsResponse } from '../../../../shared/types/courseDetailsResponse'
-import type { DBCell, DBUser } from '../../../../shared/types/db'
+import type { DBCell, DBUser, DBCourse } from '../../../../shared/types/db'
 
 export default defineEventHandler(async (event) => {
     const courseId = getRouterParam(event, 'id')

@@ -52,16 +52,7 @@ const defaultTab = computed(() => {
     return 'students' // Default for others, though they might not have roles yet
 })
 
-const needsRoleSetup = computed(() => {
-    if (!courseDetails.value || pendingDetails.value) return false
-    // The owner does not need to choose a role initially, but other users do.
-    return !isOwner.value && !isTeacher.value && !isCoord.value
-})
-
-function handleRoleSet() {
-    // Refresh data to get the new role and UI state
-    refreshNuxtData(`course-details-${courseId.value}`)
-}
+// No longer needed - all teachers from Classroom are automatically teachers in the app
 
 async function syncCourse() {
     if (!dbCourse.value) return
@@ -92,13 +83,7 @@ async function syncCourse() {
             <NuxtLink to="/dashboard" class="text-blue-500 hover:underline">Return to Dashboard</NuxtLink>
         </div>
 
-        <InitialSetupForm 
-            v-else-if="needsRoleSetup"
-            :course-id="courseId"
-            @role-set="handleRoleSet"
-        />
-
-        <!-- If role is defined, show the course management content -->
+        <!-- Show the course management content -->
         <div v-else-if="courseDetails">
             <div class='mb-6'>
                 <div class="flex justify-between items-center">

@@ -40,30 +40,53 @@ async function setRole(role: 'teacher' | 'coordinator') {
 </script>
 
 <template>
-    <div class="max-w-2xl mx-auto p-6 bg-white border border-gray-200 rounded-lg shadow-md">
-        <h2 class="text-2xl font-bold text-gray-800 mb-4">Configuración Inicial del Curso</h2>
-        <p class="text-gray-600 mb-6">Para gestionar este curso, primero debes establecer tu rol. Esta acción es permanente.</p>
+    <UCard class="max-w-2xl mx-auto">
+        <template #header>
+            <div class="flex items-center gap-3">
+                <UIcon name="i-heroicons-academic-cap" class="w-6 h-6 text-primary" />
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
+                    Configuración Inicial del Curso
+                </h2>
+            </div>
+        </template>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <UButton 
-                label="Soy Profesor"
-                :loading="settingRole"
-                size="xl"
-                block
-                @click="setRole('teacher')" 
+        <div class="space-y-6">
+            <UAlert
+                icon="i-heroicons-information-circle"
+                color="info"
+                variant="soft"
+                title="Selecciona tu rol"
+                description="Para gestionar este curso, primero debes establecer tu rol. Esta acción es permanente."
             />
-            <UButton 
-                label="Soy Coordinador"
-                :loading="settingRole"
-                color="green"
-                size="xl"
-                block
-                @click="setRole('coordinator')" 
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <UButton 
+                    label="Soy Profesor"
+                    :loading="settingRole"
+                    color="primary"
+                    size="xl"
+                    icon="i-heroicons-user-group"
+                    block
+                    @click="setRole('teacher')" 
+                />
+                <UButton 
+                    label="Soy Coordinador"
+                    :loading="settingRole"
+                    color="success"
+                    size="xl"
+                    icon="i-heroicons-cog-6-tooth"
+                    block
+                    @click="setRole('coordinator')" 
+                />
+            </div>
+
+            <UAlert
+                v-if="error"
+                icon="i-heroicons-exclamation-triangle"
+                color="error"
+                variant="soft"
+                :title="error"
             />
         </div>
-
-        <div v-if="error" class="mt-4 text-red-500">
-            <p>Error: {{ error }}</p>
-        </div>
-    </div>
+    </UCard>
 </template>
