@@ -19,6 +19,12 @@ export default defineEventHandler(async (event) => {
     // SurrealDB's select method returns an array, so we expect one item.
     const course = await db.select(new RecordId('course', courseId))
 
+    const [teachers, students, cells] = await db.query(`
+        SELECT <-is_teacher<-user.* FROM ${course.id};
+        SELECT <-is_student<-user.* FROM ${course.id};
+        SELECT <-is_cell<-cell.* FROM ${course.id};
+    `)
+
     if (!course) {
         throw createError({
             statusCode: 404,
@@ -28,5 +34,8 @@ export default defineEventHandler(async (event) => {
 
     return {
         course,
+        teachers,
+        students,
+        cells,
     }
 })

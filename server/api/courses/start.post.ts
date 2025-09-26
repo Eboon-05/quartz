@@ -74,6 +74,9 @@ export default defineEventHandler(async (event) => {
 
     const [dbCourse] = await db.upsert(`course`, {
         id: body.courseId,
+        name: course.data.name,
+        created_at: new Date(),
+        last_updated: new Date(),
     })
 
     await db.query(`
