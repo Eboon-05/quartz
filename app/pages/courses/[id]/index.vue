@@ -56,11 +56,13 @@ const defaultTab = computed(() => {
 
 const isSyncing = ref(false)
 const toast = useToast()
+const { showLoading, hideLoading } = useGlobalLoading()
 
 async function syncCourse() {
     if (!dbCourse.value || isSyncing.value) return
     
     isSyncing.value = true
+    showLoading('Sincronizando con Google Classroom...')
     
     try {
         const result = await $fetch(`/api/courses/${dbCourse.value.id}/sync`, {
@@ -99,6 +101,7 @@ async function syncCourse() {
         }
     } finally {
         isSyncing.value = false
+        hideLoading()
     }
 }
 </script>

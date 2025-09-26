@@ -103,7 +103,14 @@ export default defineEventHandler(async (event) => {
 
         await Promise.all(profilePromises.filter(Boolean))
 
-        // 5. Sync course relationships using native relate
+        // 5. Clean up ALL existing relationships for this course first to avoid duplicates
+        console.log('Cleaning existing relationships for course:', cleanCourseId)
+        await Promise.all([
+            db.query(`DELETE is_teacher WHERE out = ${courseRecordId}`),
+            db.query(`DELETE is_student WHERE out = ${courseRecordId}`)
+        ])
+
+        // 6. Create fresh relationships based on current Classroom data
         const relationshipPromises = []
 
         // Create teacher relationships
@@ -111,7 +118,10 @@ export default defineEventHandler(async (event) => {
             if (teacher.userId) {
                 const teacherRecordId = new RecordId('user', teacher.userId)
                 relationshipPromises.push(
-                    db.relate(teacherRecordId, 'is_teacher', courseRecordId, { created_at: new Date() })
+                    db.relate(teacherRecordId, 'is_teacher', courseRecordId, { 
+                        created_at: new Date(),
+                        synced_at: new Date()
+                    })
                 )
             }
         }
@@ -121,43 +131,16 @@ export default defineEventHandler(async (event) => {
             if (student.userId) {
                 const studentRecordId = new RecordId('user', student.userId)
                 relationshipPromises.push(
-                    db.relate(studentRecordId, 'is_student', courseRecordId, { created_at: new Date() })
+                    db.relate(studentRecordId, 'is_student', courseRecordId, { 
+                        created_at: new Date(),
+                        synced_at: new Date()
+                    })
                 )
             }
         }
 
+        console.log(`Creating ${relationshipPromises.length} new relationships`)
         await Promise.all(relationshipPromises)
-
-        // 6. Clean up old relationships that no longer exist in Classroom
-        const currentTeacherIds = classroomTeachers
-            .filter(t => t.userId)
-            .map(t => new RecordId('user', t.userId!))
-        
-        const currentStudentIds = classroomStudents
-            .filter(s => s.userId)
-            .map(s => new RecordId('user', s.userId!))
-
-        // Remove teacher relationships for users no longer teachers in Classroom
-        if (currentTeacherIds.length > 0) {
-            const teacherIdStrings = currentTeacherIds.map(id => `${id}`).join(', ')
-            await db.query(
-                `DELETE is_teacher WHERE out = ${courseRecordId} AND in NOT IN [${teacherIdStrings}]`
-            )
-        } else {
-            // If no teachers, remove all teacher relationships for this course
-            await db.query(`DELETE is_teacher WHERE out = ${courseRecordId}`)
-        }
-
-        // Remove student relationships for users no longer students in Classroom
-        if (currentStudentIds.length > 0) {
-            const studentIdStrings = currentStudentIds.map(id => `${id}`).join(', ')
-            await db.query(
-                `DELETE is_student WHERE out = ${courseRecordId} AND in NOT IN [${studentIdStrings}]`
-            )
-        } else {
-            // If no students, remove all student relationships for this course
-            await db.query(`DELETE is_student WHERE out = ${courseRecordId}`)
-        }
 
         // 7. Return a comprehensive summary
         return {

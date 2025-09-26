@@ -2,6 +2,7 @@
 import type { classroom_v1 } from 'googleapis'
 
 const user = useUser()
+const { showLoading, hideLoading } = useGlobalLoading()
 
 interface Course {
     classroom: classroom_v1.Schema$Course
@@ -20,6 +21,7 @@ const courses = computed(() => data.value?.courses ?? [])
 
 async function startCourse(courseId: string) {
     try {
+        showLoading('Clonando curso...')
         await $fetch('/api/courses/start', {
             method: 'POST',
             body: { courseId },
@@ -27,6 +29,8 @@ async function startCourse(courseId: string) {
         await refresh()
     } catch (error) {
         console.error('Error starting course:', error)
+    } finally {
+        hideLoading()
     }
 }
 </script>
