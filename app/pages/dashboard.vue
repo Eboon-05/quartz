@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import type { classroom_v1 } from 'googleapis'
-
 import { useGlobalLoading } from '~/composables/useGlobalLoading'
 
 const user = useUser()
 const { showLoading, hideLoading } = useGlobalLoading()
 
 interface Course {
-    classroom: classroom_v1.Schema$Course
+    classroom: {
+        id: string
+        name: string
+        section?: string
+        descriptionHeading?: string
+        alternateLink?: string
+        courseState?: string
+    }
     db: Record<string, unknown> | null
+    role: 'teacher' | 'student'
 }
 
 interface CoursesResponse {
@@ -71,36 +77,71 @@ async function startCourse(courseId: string) {
 
                 <template v-else-if="data">
             <div v-if="courses.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                <UCard v-for="course in courses" :key="course.classroom.id!">
+                <UCard v-for="course in courses" :key="course.classroom.id" class="hover:shadow-lg transition-shadow duration-300">
                     <template #header>
-                        <h3 class="font-semibold truncate" :title="course.classroom.name ?? ''">
-                            {{ course.classroom.name }}
-                        </h3>
+                        <div class="flex justify-between items-start">
+                            <h3 class="font-semibold truncate flex-1" :title="course.classroom.name">
+                                {{ course.classroom.name }}
+                            </h3>
+                            <UBadge 
+                                :label="course.role === 'teacher' ? 'Profesor' : 'Estudiante'"
+                                :color="course.role === 'teacher' ? 'primary' : 'info'"
+                                size="xs"
+                                class="ml-2"
+                            />
+                        </div>
                     </template>
 
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                        {{ course.classroom.section || 'No section specified' }}
-                    </p>
+                    <div class="space-y-3">
+                        <p class="text-sm text-gray-600 dark:text-gray-300">
+                            {{ course.classroom.descriptionHeading }}
+                        </p>
+                        
+                        <div class="flex items-center justify-between">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                {{ course.classroom.section }}
+                            </p>
+                            <div v-if="course.db" class="flex items-center space-x-1">
+                                <UIcon name="i-heroicons-check-circle" class="w-3 h-3 text-success-500" />
+                                <span class="text-xs text-success-600 dark:text-success-400">Configurado</span>
+                            </div>
+                            <div v-else class="flex items-center space-x-1">
+                                <UIcon name="i-heroicons-exclamation-circle" class="w-3 h-3 text-warning-500" />
+                                <span class="text-xs text-warning-600 dark:text-warning-400">Sin configurar</span>
+                            </div>
+                        </div>
+                    </div>
 
                     <template #footer>
-                        <UButton
-                            v-if="!course.db"
-                            block
-                            label="Clone"
-                            @click="startCourse(course.classroom.id!)"
-                        />
-                        <NuxtLink v-else :to="`/courses/${course.classroom.id}`">
+                        <div class="flex space-x-2">
                             <UButton
+                                v-if="!course.db"
+                                :label="course.role === 'student' ? 'Unirse' : 'Configurar'"
+                                :icon="course.role === 'student' ? 'i-heroicons-user-plus' : 'i-heroicons-cog-6-tooth'"
                                 block
-                                label="Manage"
-                                color="secondary"
+                                @click="startCourse(course.classroom.id)"
                             />
-                        </NuxtLink>
+                            <NuxtLink v-else :to="`/courses/${course.classroom.id}`" class="flex-1">
+                                <UButton
+                                    :label="course.role === 'student' ? 'Ver Curso' : 'Gestionar'"
+                                    :icon="course.role === 'student' ? 'i-heroicons-eye' : 'i-heroicons-cog-6-tooth'"
+                                    color="primary"
+                                    variant="soft"
+                                    block
+                                />
+                            </NuxtLink>
+                        </div>
                     </template>
                 </UCard>
             </div>
-            <div v-else>
-                <p>No active courses found where you are a teacher.</p>
+            <div v-else class="text-center py-12">
+                <UIcon name="i-heroicons-academic-cap" class="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                    No hay cursos disponibles
+                </h3>
+                <p class="text-gray-500 dark:text-gray-400">
+                    No tienes cursos activos en este momento. Los cursos aparecerán aquí cuando sean sincronizados desde Google Classroom.
+                </p>
             </div>
         </template>
     </div>

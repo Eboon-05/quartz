@@ -1,6 +1,6 @@
 <script setup lang='ts'>
-import type { DBCourse } from '#shared/types/db'
-import type { CourseDetailsResponse } from '#shared/types/courseDetailsResponse'
+import type { DBCourse } from '../../../shared/types/db'
+import type { CourseDetailsResponse } from '../../../shared/types/courseDetailsResponse'
 import { RecordId } from 'surrealdb'
 import { useGlobalLoading } from '~/composables/useGlobalLoading'
 
@@ -26,6 +26,7 @@ const _isOwner = computed(() => {
 
 const isTeacher = computed(() => courseDetails.value?.isTeacher ?? false)
 const isCoord = computed(() => courseDetails.value?.isCoord ?? false)
+const isStudent = computed(() => courseDetails.value?.isStudent ?? false)
 
 const tabs = computed(() => [
     {
@@ -117,51 +118,59 @@ async function syncCourse() {
 
         <!-- Show the course management content -->
         <div v-else-if="courseDetails">
-            <div class='mb-6'>
-                <div class="flex justify-between items-center">
-                    <h1 class='text-2xl font-bold'>
-                        {{ dbCourse?.name }}
-                    </h1>
-                    <div class="flex items-center space-x-2">
-                        <UButton
-                            v-if="isTeacher"
-                            :label="isSyncing ? 'Sincronizando...' : 'Sincronizar con Classroom'"
-                            :icon="isSyncing ? 'i-heroicons-arrow-path' : 'i-heroicons-arrow-path'"
-                            :loading="isSyncing"
-                            :disabled="isSyncing"
-                            color="primary"
-                            variant="outline"
-                            @click="syncCourse"
-                        />
-                    </div>
-                </div>
-                <p class='text-gray-500'>
-                    Course ID: {{ courseId }}
-                </p>
+            <!-- Vista del Estudiante -->
+            <div v-if="isStudent && !isTeacher && !isCoord">
+                <CourseStudentView :course-details="courseDetails" :course-id="courseId" />
             </div>
+            
+            <!-- Vista del Profesor/Coordinador (interfaz original con tabs) -->
+            <div v-else>
+                <div class='mb-6'>
+                    <div class="flex justify-between items-center">
+                        <h1 class='text-2xl font-bold'>
+                            {{ dbCourse?.name }}
+                        </h1>
+                        <div class="flex items-center space-x-2">
+                            <UButton
+                                v-if="isTeacher"
+                                :label="isSyncing ? 'Sincronizando...' : 'Sincronizar con Classroom'"
+                                :icon="isSyncing ? 'i-heroicons-arrow-path' : 'i-heroicons-arrow-path'"
+                                :loading="isSyncing"
+                                :disabled="isSyncing"
+                                color="primary"
+                                variant="outline"
+                                @click="syncCourse"
+                            />
+                        </div>
+                    </div>
+                    <p class='text-gray-500'>
+                        Course ID: {{ courseId }}
+                    </p>
+                </div>
 
-            <UTabs :items="tabs" :default-index="tabs.findIndex(t => t.slot === defaultTab)">
-                <template #cell>
-                    <div class="p-4">
-                        <CourseTabViewCell :course-details="courseDetails" :course-id="courseId" />
-                    </div>
-                </template>
-                <template #students>
-                    <div class="p-4">
-                        <CourseTabViewStudents :course-details="courseDetails" />
-                    </div>
-                </template>
-                <template #teachers>
-                    <div class="p-4">
-                        <CourseTabViewTeachers :course-details="courseDetails" />
-                    </div>
-                </template>
-                <template #stats>
-                    <div class="p-4">
-                        <CourseTabViewStats :course-details="courseDetails" :course-id="courseId" />
-                    </div>
-                </template>
-            </UTabs>
+                <UTabs :items="tabs" :default-index="tabs.findIndex(t => t.slot === defaultTab)">
+                    <template #cell>
+                        <div class="p-4">
+                            <CourseTabViewCell :course-details="courseDetails" :course-id="courseId" />
+                        </div>
+                    </template>
+                    <template #students>
+                        <div class="p-4">
+                            <CourseTabViewStudents :course-details="courseDetails" />
+                        </div>
+                    </template>
+                    <template #teachers>
+                        <div class="p-4">
+                            <CourseTabViewTeachers :course-details="courseDetails" />
+                        </div>
+                    </template>
+                    <template #stats>
+                        <div class="p-4">
+                            <CourseTabViewStats :course-details="courseDetails" :course-id="courseId" />
+                        </div>
+                    </template>
+                </UTabs>
+            </div>
         </div>
     </div>
 </template>

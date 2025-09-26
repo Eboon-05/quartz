@@ -10,5 +10,6 @@ export interface CourseDetailsResponse {
     owner: DBUser | null
     isTeacher: boolean
     isCoord: boolean
+    isStudent: boolean
     teacherCell: DBCell | null
 }

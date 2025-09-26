@@ -59,6 +59,7 @@ export default defineEventHandler(async (event) => {
         const userId = new RecordId('user', user.id)
         const isTeacher = teachers.some(t => t && t.id && t.id.toString() === userId.toString())
         const isCoord = coords.some(c => c && c.id && c.id.toString() === userId.toString())
+        const isStudent = students.some(s => s && s.id && s.id.toString() === userId.toString())
 
         let teacherCell: DBCell | null = null
         if (isTeacher) {
@@ -83,6 +84,7 @@ export default defineEventHandler(async (event) => {
             owner,
             isTeacher,
             isCoord,
+            isStudent,
             teacherCell,
         }
 
