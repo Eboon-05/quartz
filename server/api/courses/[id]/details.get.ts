@@ -18,25 +18,24 @@ export default defineEventHandler(async (event) => {
     try {
         const courseRecordId = new RecordId('course', courseId)
 
-        // 1. Fetch all data in parallel.
+        // 1. Fetch the course itself to ensure it exists.
+        const [[course]] = await db.query<[DBCourse[]]>(`SELECT * FROM ${courseRecordId}`);
+        if (!course) {
+            throw createError({ statusCode: 404, statusMessage: 'Course not found.' });
+        }
+
+        // 2. Fetch all related data in parallel.
         const [
-            courseResult,
             teachersResult,
             studentsResult,
             ownerResult,
             cellsResult,
         ] = await Promise.all([
-            db.query<DBCourse[]>(`SELECT * FROM ${courseRecordId}`),
             db.query<[{ in: DBUser }[]]>(`SELECT * FROM is_teacher WHERE out = ${courseRecordId} FETCH in`),
             db.query<[{ in: DBUser }[]]>(`SELECT * FROM is_student WHERE out = ${courseRecordId} FETCH in`),
             db.query<[{ in: DBUser }[]]>(`SELECT * FROM is_owner WHERE out = ${courseRecordId} FETCH in`),
             db.query<DBCell[]>(`SELECT * FROM cell WHERE ->is_from->course CONTAINS ${courseRecordId}`),
-        ])
-
-        const course = courseResult[0]
-        if (!course) {
-            throw createError({ statusCode: 404, statusMessage: 'Course not found.' })
-        }
+        ]);
 
         const teachers = teachersResult[0]?.map(t => t.in) || []
         const students = studentsResult[0]?.map(s => s.in) || []
