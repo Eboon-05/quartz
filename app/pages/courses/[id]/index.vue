@@ -16,7 +16,7 @@ const dbCourse = computed<DBCourse | null>(() => courseDetails.value?.course ?? 
 
 
 
-const isOwner = computed(() => {
+const _isOwner = computed(() => {
     if (!courseDetails.value?.owner || !user.value?.id) return false
     const userId = new RecordId('user', user.value.id)
     // SurrealDB RecordId needs to be compared by its string representation
@@ -54,23 +54,51 @@ const defaultTab = computed(() => {
 
 // No longer needed - all teachers from Classroom are automatically teachers in the app
 
+const isSyncing = ref(false)
+const toast = useToast()
+
 async function syncCourse() {
-    if (!dbCourse.value) return
+    if (!dbCourse.value || isSyncing.value) return
+    
+    isSyncing.value = true
+    
     try {
         const result = await $fetch(`/api/courses/${dbCourse.value.id}/sync`, {
             method: 'POST',
         })
-        alert(`Sync successful! ${result.syncedTeachers} teachers and ${result.syncedStudents} students updated.`)
-        // Optionally, you could refresh data here
+        
+        toast.add({
+            title: 'Sincronización exitosa',
+            description: `${result.syncedTeachers} profesores y ${result.syncedStudents} estudiantes sincronizados.`,
+            color: 'success',
+            icon: 'i-heroicons-check-circle',
+        })
+        
+        // Refresh course details after successful sync
+        await refreshCookie(`course-details-${courseId.value}`)
+        window.location.reload()
+        
     } catch (error) {
         // Type guard to check if the error looks like a FetchError
         if (typeof error === 'object' && error !== null && ('data' in error || 'statusMessage' in error)) {
             const fetchError = error as { data?: { message?: string }, statusMessage?: string }
-            alert(`Sync failed: ${fetchError.data?.message || fetchError.statusMessage || 'An unknown error occurred.'}`)
+            toast.add({
+                title: 'Error de sincronización',
+                description: fetchError.data?.message || fetchError.statusMessage || 'Error desconocido.',
+                color: 'error',
+                icon: 'i-heroicons-exclamation-triangle',
+            })
         } else {
-            alert('An unexpected error occurred.')
+            toast.add({
+                title: 'Error inesperado',
+                description: 'Ocurrió un error inesperado durante la sincronización.',
+                color: 'error',
+                icon: 'i-heroicons-exclamation-triangle',
+            })
             console.error(error)
         }
+    } finally {
+        isSyncing.value = false
     }
 }
 </script>
@@ -92,9 +120,13 @@ async function syncCourse() {
                     </h1>
                     <div class="flex items-center space-x-2">
                         <UButton
-                            v-if="isOwner"
-                            label="Sync with Classroom"
-                            icon="i-heroicons-arrow-path"
+                            v-if="isTeacher"
+                            :label="isSyncing ? 'Sincronizando...' : 'Sincronizar con Classroom'"
+                            :icon="isSyncing ? 'i-heroicons-arrow-path' : 'i-heroicons-arrow-path'"
+                            :loading="isSyncing"
+                            :disabled="isSyncing"
+                            color="primary"
+                            variant="outline"
                             @click="syncCourse"
                         />
                     </div>
