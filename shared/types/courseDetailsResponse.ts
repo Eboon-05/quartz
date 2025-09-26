@@ -4,12 +4,10 @@ import type { DBUser, DBCourse, DBCell } from './db'
 export interface CourseDetailsResponse {
     course: DBCourse
     teachers: DBUser[]
-    coords: DBUser[]
     students: DBUser[]
     cells: DBCell[]
     owner: DBUser | null
     isTeacher: boolean
-    isCoord: boolean
     isStudent: boolean
     teacherCell: DBCell | null
 }

@@ -67,7 +67,6 @@ const { data: assignmentsData, pending: _assignmentsPending } = await useFetch<{
         title: string
         dueDate: string
         status: 'pending' | 'in_progress' | 'completed' | 'overdue'
-        priority: 'high' | 'medium' | 'low'
         description: string
         grade?: number
     }>
@@ -102,14 +101,6 @@ const recentGrades = computed(() =>
         .slice(0, 3)
 )
 
-const getPriorityColor = (priority: string): 'error' | 'warning' | 'info' | 'neutral' => {
-    const colors: Record<string, 'error' | 'warning' | 'info' | 'neutral'> = {
-        high: 'error',
-        medium: 'warning',
-        low: 'info',
-    }
-    return colors[priority] || 'neutral'
-}
 
 const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('es-ES', {
@@ -272,11 +263,6 @@ const cellmates = computed(() => {
                                     <h4 class="font-medium text-gray-900 dark:text-white">
                                         {{ assignment.title }}
                                     </h4>
-                                    <UBadge 
-                                        :label="assignment.priority" 
-                                        :color="getPriorityColor(assignment.priority)"
-                                        size="xs"
-                                    />
                                 </div>
                                 <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">
                                     {{ assignment.description }}

@@ -25,7 +25,6 @@ const _isOwner = computed(() => {
 })
 
 const isTeacher = computed(() => courseDetails.value?.isTeacher ?? false)
-const isCoord = computed(() => courseDetails.value?.isCoord ?? false)
 const isStudent = computed(() => courseDetails.value?.isStudent ?? false)
 
 const tabs = computed(() => [
@@ -49,7 +48,6 @@ const tabs = computed(() => [
 ])
 
 const defaultTab = computed(() => {
-    if (isCoord.value) return 'stats'
     if (isTeacher.value) return 'cell'
     return 'students' // Default for others, though they might not have roles yet
 })
@@ -119,11 +117,11 @@ async function syncCourse() {
         <!-- Show the course management content -->
         <div v-else-if="courseDetails">
             <!-- Vista del Estudiante -->
-            <div v-if="isStudent && !isTeacher && !isCoord">
+            <div v-if="isStudent && !isTeacher">
                 <CourseStudentView :course-details="courseDetails" :course-id="courseId" />
             </div>
             
-            <!-- Vista del Profesor/Coordinador (interfaz original con tabs) -->
+            <!-- Vista del Profesor (interfaz original con tabs) -->
             <div v-else>
                 <div class='mb-6'>
                     <div class="flex justify-between items-center">
