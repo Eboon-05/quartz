@@ -1,6 +1,5 @@
-// This endpoint retrieves the full database record for a specific course.
-
-import { RecordId } from "surrealdb"
+import { RecordId } from 'surrealdb'
+import type { DBCourse, DBUser, DBCell } from '#shared/types/db'
 
 export default defineEventHandler(async (event) => {
     const courseId = getRouterParam(event, 'id')
@@ -12,20 +11,32 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    // The auth middleware already protects this route.
     const db = await getDB()
 
-    // Fetch the course from the database.
-    // SurrealDB's select method returns an array, so we expect one item.
-    const course = await db.select(new RecordId('course', courseId))
+    // Use FETCH to get the course and all related, flattened data in one go
+    const [courses, teachers, students, coords, cells, owners] = await db.query<
+        [
+            DBCourse[],
+            { '<-is_teacher': { '<-user': DBUser[] } }[],
+            { '<-is_student': { '<-user': DBUser[] } }[],
+            { '<-is_coord': { '<-user': DBUser[] } }[],
+            { '<-in_course': { '<-cell': DBCell[] } }[],
+            { '<-is_owner': { '<-user': DBUser[] } }[],
+        ]
+    >(`
+        SELECT * FROM $course;
+        SELECT <-is_teacher<-user.* FROM $course;
+        SELECT <-is_student<-user.* FROM $course;
+        SELECT <-is_coord<-user.* FROM $course;
+        SELECT <-in_course<-cell.* FROM $course;
+        SELECT <-is_owner<-user.* FROM $course;
+    `,
+        {
+            course: new RecordId('course', courseId)
+        }
+    )
 
-    const [teachers, students, cells] = await db.query(`
-        SELECT <-is_teacher<-user.* FROM ${course.id};
-        SELECT <-is_student<-user.* FROM ${course.id};
-        SELECT <-is_cell<-cell.* FROM ${course.id};
-    `)
-
-    if (!course) {
+    if (courses.length === 0) {
         throw createError({
             statusCode: 404,
             statusMessage: 'Course not found in the database. It may need to be started from the dashboard.',
@@ -33,9 +44,11 @@ export default defineEventHandler(async (event) => {
     }
 
     return {
-        course,
-        teachers,
-        students,
-        cells,
+        course: courses[0],
+        teachers: teachers[0]['<-is_teacher']['<-user'],
+        students: students[0]['<-is_student']['<-user'],
+        coords: coords[0]['<-is_coord']['<-user'],
+        cells: cells[0]['<-in_course']['<-cell'],
+        owner: owners[0]['<-is_owner']['<-user'][0],
     }
 })

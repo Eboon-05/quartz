@@ -1,68 +1,33 @@
 <script setup lang='ts'>
+import type { DBCourse, DBUser, DBCell } from '#shared/types/db'
+import type { CourseDetailsResponse } from '#shared/types/courseDetailsResponse'
+import { RecordId } from 'surrealdb'
+
 const route = useRoute()
 const user = useUser()
 const courseId = computed(() => route.params.id as string)
 
-// Define a more specific type for our DB course record
-interface DbCourse {
-    id: string
-    ownerId: string
-    teachers: string[]
-    coords: string[]
-}
-
-interface CourseDetailsResponse {
-    course: DbCourse
-}
-
 // Fetch the full course details from our new endpoint
-const { data: courseDetails, pending: pendingDetails, error: detailsError, refresh } = useFetch<CourseDetailsResponse>(`/api/courses/${courseId.value}`, {
+const { data: courseDetails, pending: pendingDetails, error: detailsError } = useFetch<CourseDetailsResponse>(`/api/courses/${courseId.value}`, {
     key: `course-details-${courseId.value}`,
 })
 
-const dbCourse = computed(() => courseDetails.value?.course as DbCourse | null)
+const dbCourse = computed<DBCourse | null>(() => courseDetails.value?.course ?? null)
 
-// Helper function to check if the user's role is defined for this course
-const isRoleDefined = computed(() => {
-    if (!dbCourse.value || !user.value?.id) {
-        return false
-    }
-    const userId = user.value.id
-    const isTeacher = dbCourse.value.teachers?.includes(userId)
-    const isCoordinator = dbCourse.value.coords?.includes(userId)
-    return isTeacher || isCoordinator
+
+// Students are now fetched as part of the main course details
+const students = computed(() => courseDetails.value?.students || [])
+
+const isOwner = computed(() => {
+    if (!courseDetails.value?.owner || !user.value?.id) return false
+    const userId = new RecordId('user', user.value.id)
+    return courseDetails.value.owner.id === userId
 })
-
-// We only fetch students if the role is defined
-const { data: studentsData, pending: pendingStudents } = useFetch(`/api/courses/${courseId.value}/students`, {
-    // This fetch will only run if the computed property isRoleDefined is true
-    immediate: isRoleDefined.value,
-    watch: [isRoleDefined],
+const isTeacher = computed(() => {
+    if (!courseDetails.value?.teachers || !user.value?.id) return false
+    const userId = new RecordId('user', user.value.id)
+    return courseDetails.value.teachers.some(t => t.id === userId)
 })
-
-const students = computed(() => studentsData.value?.students?.filter(s => s.userId) || [])
-
-interface SetupPayload {
-    role: 'teacher' | 'coordinator'
-    students: string[]
-}
-
-async function handleSetup(payload: SetupPayload) {
-    try {
-        await $fetch(`/api/courses/${courseId.value}/setup`, {
-            method: 'POST',
-            body: payload,
-        })
-        // Refresh course data to reflect the new role and hide the form
-        await refresh()
-    } catch (error) {
-        // Handle error, e.g., show a notification
-        console.error('Failed to save setup:', error)
-        alert('Failed to save your role. Please try again.')
-    }
-}
-
-const isOwner = computed(() => dbCourse.value?.ownerId === user.value?.id)
 
 async function syncCourse() {
     if (!dbCourse.value) return
@@ -92,9 +57,6 @@ async function syncCourse() {
             <p>Error loading course: {{ detailsError.statusMessage }}</p>
             <NuxtLink to="/dashboard" class="text-blue-500 hover:underline">Return to Dashboard</NuxtLink>
         </div>
-        
-        <!-- If role is not defined, show the setup form -->
-        <InitialSetupForm v-else-if="!isRoleDefined" :course-id="courseId" @setup-complete="handleSetup" />
 
         <!-- If role is defined, show the course management content -->
         <div v-else>
@@ -103,12 +65,21 @@ async function syncCourse() {
                     <h1 class='text-2xl font-bold'>
                         Manage Course
                     </h1>
-                    <UButton 
-                        v-if="isOwner" 
-                        label="Sync with Classroom" 
-                        icon="i-heroicons-arrow-path"
-                        @click="syncCourse" 
-                    />
+                    <div class="flex items-center space-x-2">
+                        <NuxtLink
+                            v-if="isTeacher"
+                            :to="`/courses/${courseId}/cell`"
+                            class="text-blue-500 hover:underline"
+                        >
+                            Gestionar Célula
+                        </NuxtLink>
+                        <UButton
+                            v-if="isOwner"
+                            label="Sync with Classroom"
+                            icon="i-heroicons-arrow-path"
+                            @click="syncCourse"
+                        />
+                    </div>
                 </div>
                 <p class='text-gray-500'>
                     Course ID: {{ courseId }}
@@ -119,14 +90,14 @@ async function syncCourse() {
                 <h2 class='text-xl font-semibold mb-4'>
                     Enrolled Students
                 </h2>
-                <div v-if='pendingStudents' class='text-gray-500'>
+                <div v-if='pendingDetails' class='text-gray-500'>
                     Loading students...
                 </div>
                 <ul v-else-if='students.length > 0' class='space-y-3'>
-                    <template v-for='(student, index) in students' :key='student.userId || index'>
-                        <li v-if='student.userId' class='p-4 border rounded-md bg-white shadow-sm'>
-                            <p class='font-medium'>{{ student.profile?.name?.fullName || 'Name not available' }}</p>
-                            <p class='text-sm text-gray-600'>{{ student.profile?.emailAddress || 'Email not available' }}</p>
+                    <template v-for='student in students' :key='student.id.id'>
+                        <li class='p-4 border rounded-md bg-white shadow-sm'>
+                            <p class='font-medium'>{{ student.name || 'Name not available' }}</p>
+                            <p class='text-sm text-gray-600'>{{ student.email || 'Email not available' }}</p>
                         </li>
                     </template>
                 </ul>

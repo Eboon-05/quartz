@@ -33,6 +33,7 @@ export default defineEventHandler(async (event) => {
 
     let query = `
         RELATE ${cell.id}->belongs_to->${new RecordId('course', courseId)};
+        RELATE ${cell.id}->in_course->${new RecordId('course', courseId)};
     `
 
     for (const studentId of body.students) {
