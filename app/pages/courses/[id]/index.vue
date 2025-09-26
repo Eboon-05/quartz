@@ -132,7 +132,7 @@ async function syncCourse() {
                         </h1>
                         <div class="flex items-center space-x-2">
                             <UButton
-                                v-if="isTeacher"
+                                v-if="isTeacher || isStudent"
                                 :label="isSyncing ? 'Sincronizando...' : 'Sincronizar con Classroom'"
                                 :icon="isSyncing ? 'i-heroicons-arrow-path' : 'i-heroicons-arrow-path'"
                                 :loading="isSyncing"

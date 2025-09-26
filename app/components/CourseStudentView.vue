@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CourseDetailsResponse } from '../../shared/types/courseDetailsResponse'
 import type { DBCell, DBUser } from '../../shared/types/db'
+import { useGlobalLoading } from '~/composables/useGlobalLoading'
 
 const props = defineProps<{
     courseDetails: CourseDetailsResponse
@@ -8,6 +9,56 @@ const props = defineProps<{
 }>()
 
 const user = useUser()
+const toast = useToast()
+const { showLoading, hideLoading } = useGlobalLoading()
+
+// Funcionalidad de sincronización
+const isSyncing = ref(false)
+
+async function syncCourse() {
+    if (isSyncing.value) return
+    
+    isSyncing.value = true
+    showLoading('Sincronizando con Google Classroom...')
+    
+    try {
+        const result = await $fetch(`/api/courses/${props.courseId}/sync`, {
+            method: 'POST',
+        })
+        
+        toast.add({
+            title: 'Sincronización exitosa',
+            description: `${result.syncedTeachers} profesores y ${result.syncedStudents} estudiantes sincronizados.`,
+            color: 'success',
+            icon: 'i-heroicons-check-circle',
+        })
+        
+        // Refrescar datos después de la sincronización
+        await refreshCookie(`student-assignments-${props.courseId}`)
+        await navigateTo(`/courses/${props.courseId}`, { replace: true })
+        
+    } catch (error) {
+        if (typeof error === 'object' && error !== null && ('data' in error || 'statusMessage' in error)) {
+            const fetchError = error as { data?: { message?: string }, statusMessage?: string }
+            toast.add({
+                title: 'Error de sincronización',
+                description: fetchError.data?.message || fetchError.statusMessage || 'Error desconocido.',
+                color: 'error',
+                icon: 'i-heroicons-exclamation-triangle',
+            })
+        } else {
+            toast.add({
+                title: 'Error inesperado',
+                description: 'Ocurrió un error inesperado durante la sincronización.',
+                color: 'error',
+                icon: 'i-heroicons-exclamation-triangle',
+            })
+        }
+    } finally {
+        isSyncing.value = false
+        hideLoading()
+    }
+}
 
 // Obtener asignaciones del estudiante para este curso
 const { data: assignmentsData, pending: _assignmentsPending } = await useFetch<{
@@ -122,11 +173,23 @@ const cellmates = computed(() => {
                         Bienvenido a <span class="font-semibold">{{ courseDetails.course.name }}</span>
                     </p>
                 </div>
-                <UAvatar 
-                    :src="user?.picture || ''" 
-                    :alt="user?.name || 'Usuario'" 
-                    size="xl" 
-                />
+                <div class="flex items-center space-x-3">
+                    <UButton
+                        :label="isSyncing ? 'Sincronizando...' : 'Sincronizar'"
+                        :icon="isSyncing ? 'i-heroicons-arrow-path' : 'i-heroicons-arrow-path'"
+                        :loading="isSyncing"
+                        :disabled="isSyncing"
+                        color="primary"
+                        variant="outline"
+                        size="sm"
+                        @click="syncCourse"
+                    />
+                    <UAvatar 
+                        :src="user?.picture || ''" 
+                        :alt="user?.name || 'Usuario'" 
+                        size="xl" 
+                    />
+                </div>
             </div>
         </div>
 

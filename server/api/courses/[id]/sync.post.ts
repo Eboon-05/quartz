@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
 
     const db = await getDB()
 
-    // 1. Verify permissions: Any teacher of the course can sync.
+    // 1. Verify permissions: Any member (teacher or student) of the course can sync.
     // Clean the courseId - remove 'course:' prefix if present and decode URL
     let cleanCourseId = decodeURIComponent(courseId)
     if (cleanCourseId.startsWith('course:')) {
@@ -31,10 +31,15 @@ export default defineEventHandler(async (event) => {
     const courseRecordId = new RecordId('course', cleanCourseId)
     const userRecordId = new RecordId('user', user.id)
     
-    // Check if user is a teacher of this course
-    const [isTeacherResult] = await db.query<[{ in: string, out: string }[]]>(
-        `SELECT * FROM is_teacher WHERE in = ${userRecordId} AND out = ${courseRecordId}`
-    )
+    // Check if user is a teacher or student of this course
+    const [isTeacherResult, isStudentResult] = await Promise.all([
+        db.query<[{ in: string, out: string }[]]>(
+            `SELECT * FROM is_teacher WHERE in = ${userRecordId} AND out = ${courseRecordId}`
+        ),
+        db.query<[{ in: string, out: string }[]]>(
+            `SELECT * FROM is_student WHERE in = ${userRecordId} AND out = ${courseRecordId}`
+        )
+    ])
     
     // Also check if user is the owner as a fallback and get course info
     const dbCourse = await db.select(courseRecordId)
@@ -43,9 +48,11 @@ export default defineEventHandler(async (event) => {
     }
     
     const isOwner = dbCourse.ownerId === user.id
+    const isTeacher = isTeacherResult && isTeacherResult.length > 0
+    const isStudent = isStudentResult && isStudentResult.length > 0
     
-    if ((!isTeacherResult || isTeacherResult.length === 0) && !isOwner) {
-        throw createError({ statusCode: 403, statusMessage: 'Forbidden: You must be a teacher or owner of this course to sync.' })
+    if (!isTeacher && !isStudent && !isOwner) {
+        throw createError({ statusCode: 403, statusMessage: 'Forbidden: You must be a member of this course to sync.' })
     }
 
     const classroom = google.classroom({ version: 'v1', auth: oauth2client })
