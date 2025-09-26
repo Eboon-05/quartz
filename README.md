@@ -61,7 +61,8 @@ SURREAL_DB_PASS=root
    - Google People API
 4. Crea credenciales OAuth 2.0:
    - Tipo: Aplicación web
-   - URIs de redirección autorizados: `http://localhost:3000/api/auth/callback/google`
+   - Añadir tu gmail a los usuarios de prueba
+   - Añadir http://localhost:3000 a los orígenes de js y callback url permitidos
 5. Copia `Client ID` y `Client Secret` a tu archivo `.env`
 
 ### 4. Configurar SurrealDB
