@@ -24,7 +24,44 @@ const isOwner = computed(() => {
 })
 
 const isTeacher = computed(() => courseDetails.value?.isTeacher ?? false)
-const teacherCell = computed(() => courseDetails.value?.teacherCell ?? null)
+const isCoord = computed(() => courseDetails.value?.isCoord ?? false)
+
+const tabs = computed(() => [
+    {
+        slot: 'cell',
+        label: 'Célula',
+        disabled: !isTeacher.value,
+    },
+    {
+        slot: 'students',
+        label: 'Alumnos',
+    },
+    {
+        slot: 'teachers',
+        label: 'Profesores',
+    },
+    {
+        slot: 'stats',
+        label: 'Estadísticas',
+    },
+])
+
+const defaultTab = computed(() => {
+    if (isCoord.value) return 'stats'
+    if (isTeacher.value) return 'cell'
+    return 'students' // Default for others, though they might not have roles yet
+})
+
+const needsRoleSetup = computed(() => {
+    if (!courseDetails.value || pendingDetails.value) return false
+    // The owner does not need to choose a role initially, but other users do.
+    return !isOwner.value && !isTeacher.value && !isCoord.value
+})
+
+function handleRoleSet() {
+    // Refresh data to get the new role and UI state
+    refreshNuxtData(`course-details-${courseId.value}`)
+}
 
 async function syncCourse() {
     if (!dbCourse.value) return
@@ -55,21 +92,20 @@ async function syncCourse() {
             <NuxtLink to="/dashboard" class="text-blue-500 hover:underline">Return to Dashboard</NuxtLink>
         </div>
 
+        <InitialSetupForm 
+            v-else-if="needsRoleSetup"
+            :course-id="courseId"
+            @role-set="handleRoleSet"
+        />
+
         <!-- If role is defined, show the course management content -->
-        <div v-else>
+        <div v-else-if="courseDetails">
             <div class='mb-6'>
                 <div class="flex justify-between items-center">
                     <h1 class='text-2xl font-bold'>
                         {{ dbCourse?.name }}
                     </h1>
                     <div class="flex items-center space-x-2">
-                        <NuxtLink
-                            v-if="isTeacher"
-                            :to="`/courses/${courseId}/cell`"
-                            class="text-blue-500 hover:underline"
-                        >
-                            {{ teacherCell ? 'Editar Célula' : 'Crear Célula' }}
-                        </NuxtLink>
                         <UButton
                             v-if="isOwner"
                             label="Sync with Classroom"
@@ -83,77 +119,28 @@ async function syncCourse() {
                 </p>
             </div>
 
-            
-            <!-- Teacher's Cell Information -->
-            <div v-if="isTeacher" class='mt-6'>
-                <h2 class='text-xl font-semibold mb-4'>
-                    Tu Célula
-                </h2>
-                <div v-if="teacherCell">
-                    <p class="mb-4">Nombre de la célula: <strong>{{ teacherCell.name }}</strong></p>
-
-                    <h3 class="text-lg font-semibold mb-2">Estudiantes en tu Célula</h3>
-                    <ul v-if="teacherCell.students && teacherCell.students.length > 0" class="space-y-3">
-                        <li v-for="student in teacherCell.students.filter(s => s && s.id)" :key="student.id.toString()" class="p-4 border rounded-md bg-white shadow-sm">
-                            <p class="font-medium">{{ student.name || 'Name not available' }}</p>
-                            <p class="text-sm text-gray-600">{{ student.email || 'Email not available' }}</p>
-                        </li>
-                    </ul>
-                    <p v-else class="text-gray-500">No hay estudiantes asignados a tu célula.</p>
-                </div>
-                <div v-else>
-                    <p>Aún no has creado una célula para este curso.</p>
-                    <NuxtLink
-                        :to="`/courses/${courseId}/cell`"
-                        class="text-blue-500 hover:underline"
-                    >
-                        Crear una ahora
-                    </NuxtLink>
-                </div>
-            </div>
-
-            <UDivider class="my-8" />
-
-            <div v-if="courseDetails" class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <!-- Teachers Column -->
-                <div class="md:col-span-1">
-                    <h2 class="text-xl font-semibold mb-4">Teachers</h2>
-                    <ul class="space-y-3">
-                        <li v-for="teacher in courseDetails.teachers" :key="teacher.id.toString()" class="flex items-center gap-3">
-                            <UAvatar :src="teacher.photoUrl" :alt="teacher.name" />
-                            <span>{{ teacher.name }}</span>
-                        </li>
-                    </ul>
-                </div>
-
-                <!-- Students Column -->
-                <div class="md:col-span-1">
-                    <h2 class="text-xl font-semibold mb-4">Students</h2>
-                    <ul class="space-y-3">
-                        <li v-for="student in courseDetails.students" :key="student.id.toString()" class="flex items-center gap-3">
-                            <UAvatar :src="student.photoUrl" :alt="student.name" />
-                            <span>{{ student.name }}</span>
-                        </li>
-                    </ul>
-                </div>
-
-                <!-- Cells Column -->
-                <div class="md:col-span-1">
-                    <h2 class="text-xl font-semibold mb-4">Cells</h2>
-                    <div class="space-y-4">
-                        <div v-for="cell in courseDetails.cells.filter(c => c && c.id)" :key="cell.id.toString()">
-                            <h3 class="font-semibold">{{ cell.name }}</h3>
-                            <ul v-if="cell.students && cell.students.length > 0" class="pl-4 mt-2 space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                                <li v-for="student in cell.students.filter(s => s && s.id)" :key="student.id.toString()" class="flex items-center gap-2">
-                                    <UAvatar :src="student.photoUrl" :alt="student.name" size="2xs" />
-                                    <span>{{ student.name }}</span>
-                                </li>
-                            </ul>
-                            <p v-else class="pl-4 mt-2 text-xs text-gray-400">No students in this cell.</p>
-                        </div>
+            <UTabs :items="tabs" :default-index="tabs.findIndex(t => t.slot === defaultTab)">
+                <template #cell>
+                    <div class="p-4">
+                        <CourseTabViewCell :course-details="courseDetails" :course-id="courseId" />
                     </div>
-                </div>
-            </div>
+                </template>
+                <template #students>
+                    <div class="p-4">
+                        <CourseTabViewStudents :course-details="courseDetails" />
+                    </div>
+                </template>
+                <template #teachers>
+                    <div class="p-4">
+                        <CourseTabViewTeachers :course-details="courseDetails" />
+                    </div>
+                </template>
+                <template #stats>
+                    <div class="p-4">
+                        <CourseTabViewStats :course-details="courseDetails" />
+                    </div>
+                </template>
+            </UTabs>
         </div>
     </div>
 </template>

@@ -9,5 +9,6 @@ export interface CourseDetailsResponse {
     cells: DBCell[]
     owner: DBUser | null
     isTeacher: boolean
+    isCoord: boolean
     teacherCell: DBCell | null
 }

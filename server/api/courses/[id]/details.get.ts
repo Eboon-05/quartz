@@ -30,17 +30,20 @@ export default defineEventHandler(async (event) => {
             studentsResult,
             ownerResult,
             cellsResult,
+            coordsResult,
         ] = await Promise.all([
             db.query<[{ in: DBUser }[]]>(`SELECT * FROM is_teacher WHERE out = ${courseRecordId} FETCH in`),
             db.query<[{ in: DBUser }[]]>(`SELECT * FROM is_student WHERE out = ${courseRecordId} FETCH in`),
             db.query<[{ in: DBUser }[]]>(`SELECT * FROM is_owner WHERE out = ${courseRecordId} FETCH in`),
             db.query<DBCell[]>(`SELECT * FROM cell WHERE ->is_from->course CONTAINS ${courseRecordId}`),
+            db.query<[{ in: DBUser }[]]>(`SELECT * FROM is_coord WHERE out = ${courseRecordId} FETCH in`),
         ]);
 
         const teachers = teachersResult[0]?.map(t => t.in) || []
         const students = studentsResult[0]?.map(s => s.in) || []
         const owner = ownerResult[0]?.[0]?.in || null
         const rawCells = cellsResult || []
+        const coords = coordsResult[0]?.map(c => c.in) || []
 
         // 3. Manually fetch students for each cell.
         const cells: DBCell[] = await Promise.all(rawCells.map(async (cell: DBCell) => {
@@ -55,6 +58,7 @@ export default defineEventHandler(async (event) => {
         // 4. Determine user's role and their specific cell.
         const userId = new RecordId('user', user.id)
         const isTeacher = teachers.some(t => t && t.id && t.id.toString() === userId.toString())
+        const isCoord = coords.some(c => c && c.id && c.id.toString() === userId.toString())
 
         let teacherCell: DBCell | null = null
         if (isTeacher) {
@@ -73,11 +77,12 @@ export default defineEventHandler(async (event) => {
         const response: CourseDetailsResponse = {
             course,
             teachers,
-            coords: [], // Coords logic not implemented yet
+            coords,
             students,
             cells,
             owner,
             isTeacher,
+            isCoord,
             teacherCell,
         }
 
